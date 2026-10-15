@@ -9,6 +9,7 @@ const nextConfig: NextConfig = {
     // Node/TypeScript runtime combination. Keep Next type checking enabled via
     // the installed TypeScript API instead of bypassing validation.
     useTypeScriptCli: false,
+    webpackBuildWorker: false,
   },
   turbopack: {
     rules: {

@@ -1,12 +1,15 @@
 import { z } from "zod";
-import type { CulturalEntity } from "@/core/entities/types";
+import { EntityCategorySchema, type CulturalEntity, type EntityCategory } from "@/core/entities/types";
 import type { CulturalEvidence } from "@/core/evidence/types";
+import type { EvidenceGraph } from "@/core/evidence/graph";
 
 export const LaunchScenarioInputSchema = z.object({
   text: z.string().trim().min(1).max(2_000).optional(),
   productConcept: z.string().trim().min(1).max(300).optional(),
   launchLocation: z.string().trim().min(1).max(160).optional(),
   seedQueries: z.array(z.string().trim().min(1).max(120)).max(3).optional(),
+  seedCategory: EntityCategorySchema.optional(),
+  seedEntityId: z.string().trim().min(1).max(200).optional(),
   requestedOutcome: z.string().trim().min(1).max(300).optional(),
   targetTypes: z.array(z.string().trim().min(1).max(80)).max(3).optional(),
 }).refine((value) => Boolean(value.text || value.productConcept), {
@@ -19,6 +22,8 @@ export type LaunchScenario = {
   productConcept: string;
   launchLocation?: string;
   seedQueries: string[];
+  seedCategory?: EntityCategory;
+  seedEntityId?: string;
   requestedOutcome?: string;
   targetTypes: string[];
   sourceText?: string;
@@ -26,6 +31,8 @@ export type LaunchScenario = {
 
 export type ResearchPlan = {
   seedQueries: string[];
+  seedCategory?: EntityCategory;
+  seedEntityId?: string;
   targetTypes: string[];
   locationQuery?: string;
   maxEntityResults: number;
@@ -88,8 +95,8 @@ export type AnalysisResult = {
   plan?: ResearchPlan;
   resolutions: EntityResolution[];
   evidence: CulturalEvidence[];
+  graph: EvidenceGraph;
   blueprint?: LaunchBlueprint;
   limitations: string[];
   errors: AnalysisError[];
 };
-

@@ -1,4 +1,5 @@
 import type { ProviderCapabilities } from "@/providers/interfaces/contracts";
+import type { CulturalEntity } from "@/core/entities/types";
 import {
   LaunchScenarioInputSchema,
   type LaunchScenario,
@@ -34,6 +35,8 @@ export function extractScenario(input: unknown):
       productConcept,
       launchLocation: parsed.data.launchLocation,
       seedQueries,
+      seedCategory: parsed.data.seedCategory,
+      seedEntityId: parsed.data.seedEntityId,
       requestedOutcome: parsed.data.requestedOutcome,
       targetTypes: parsed.data.targetTypes?.length ? parsed.data.targetTypes : [DEFAULT_TARGET_TYPE],
       sourceText: parsed.data.text,
@@ -58,6 +61,8 @@ export function createResearchPlan(
     ok: true,
     plan: {
       seedQueries: scenario.seedQueries.slice(0, 3),
+      seedCategory: scenario.seedCategory,
+      seedEntityId: scenario.seedEntityId,
       targetTypes: scenario.targetTypes.slice(0, 3),
       locationQuery: scenario.launchLocation,
       maxEntityResults: 5,
@@ -71,3 +76,28 @@ export function createResearchPlan(
   };
 }
 
+function normalizedName(value: string): string {
+  return value.trim().replace(/\s+/gu, " ").toLocaleLowerCase();
+}
+
+export function resolveEntityCandidates(
+  query: string,
+  candidates: CulturalEntity[],
+  options: { category?: CulturalEntity["category"]; selectedEntityId?: string } = {},
+): { query: string; status: "resolved" | "ambiguous" | "not-found"; entity?: CulturalEntity; candidates: CulturalEntity[] } {
+  const categoryCandidates = options.category
+    ? candidates.filter((candidate) => candidate.category === options.category)
+    : candidates;
+
+  if (options.selectedEntityId) {
+    const selected = categoryCandidates.find((candidate) => candidate.id === options.selectedEntityId);
+    return selected
+      ? { query, status: "resolved", entity: selected, candidates }
+      : { query, status: "not-found", candidates };
+  }
+
+  const exactMatches = categoryCandidates.filter((candidate) => normalizedName(candidate.name) === normalizedName(query));
+  if (exactMatches.length === 1) return { query, status: "resolved", entity: exactMatches[0], candidates };
+  if (exactMatches.length > 1) return { query, status: "ambiguous", candidates };
+  return { query, status: "not-found", candidates };
+}

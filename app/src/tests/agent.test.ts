@@ -4,7 +4,10 @@ import type { CulturalEntity } from "@/core/entities/types";
 import type { CulturalEvidence } from "@/core/evidence/types";
 import type { CulturalIntelligenceProvider, ProviderCapabilities, ProviderResult } from "@/providers/interfaces/contracts";
 import { DecisionEngine } from "@/agent/engine";
+import { resolveEntityCandidates } from "@/agent/planning";
 import { parseBlueprintModelOutput, type BlueprintModelInput, type ModelResult, type StructuredModelProvider } from "@/agent/model";
+import { geminiConfigFromEnvironment } from "@/providers/gemini/config";
+import { qlooConfigFromEnvironment } from "@/providers/qloo/config";
 
 const capabilities: ProviderCapabilities = { entitySearch: true, affinityDiscovery: true, geographicFiltering: true, explainability: true };
 
@@ -94,7 +97,7 @@ class ModelWithFabricatedReference implements StructuredModelProvider {
   }
 }
 
-const scenario = { productConcept: "A launch", launchLocation: "London", seedQueries: ["Example Brand"], targetTypes: ["urn:entity:place"] };
+const scenario = { productConcept: "A launch", launchLocation: "London", seedQueries: ["Example Brand"], seedCategory: "brand" as const, targetTypes: ["urn:entity:place"] };
 const engineFor = (provider: CulturalIntelligenceProvider, model: StructuredModelProvider = new PairAwareModel()) => new DecisionEngine(provider, model, () => "analysis:test");
 
 test("validates structured scenarios and completes genuine provider-backed research", async () => {
@@ -102,12 +105,14 @@ test("validates structured scenarios and completes genuine provider-backed resea
   const result = await engineFor(provider).analyze(scenario);
   assert.equal(result.status, "completed");
   assert.equal(result.evidence[0]?.providerScore, 0.81);
+  assert.equal(result.graph.edges.length, 1);
+  assert.deepEqual(result.graph.nodes.map((node) => node.category), ["brand", "place"]);
   assert.deepEqual(provider.calls.affinity, [`${source.id}|urn:entity:place|London`]);
   assert.equal(result.blueprint?.who.claims[0]?.classification, "verified-observation");
 });
 
 test("accepts natural language but does not silently select an ambiguous entity", async () => {
-  const provider = new FakeProvider({ ok: true, data: [source, { ...source, id: "qloo:brand:other", name: "Other Brand" }] });
+  const provider = new FakeProvider({ ok: true, data: [source, { ...source, id: "qloo:brand:other", name: source.name }] });
   const result = await engineFor(provider).analyze({ text: 'Launch "Example Brand" in London' });
   assert.equal(result.status, "partial");
   assert.equal(result.resolutions[0]?.status, "ambiguous");
@@ -146,6 +151,7 @@ test("propagates provider failures without fabricating cultural results", async 
   const result = await engineFor(new FakeProvider(undefined, { ok: false, error: { code: "AUTHENTICATION_ERROR", providerId: "qloo", message: "unauthorized" } })).analyze(scenario);
   assert.equal(result.status, "partial");
   assert.equal(result.evidence.length, 0);
+  assert.equal(result.graph.edges.length, 0);
   assert.equal(result.blueprint, undefined);
   assert.ok(result.errors.some((item) => item.code === "PROVIDER_FAILURE"));
 });
@@ -161,4 +167,64 @@ test("rejects unsupported provider capabilities before making calls", async () =
 test("returns model validation failures explicitly", async () => {
   const invalid = parseBlueprintModelOutput({ who: {} });
   assert.equal(invalid.ok, false);
+});
+
+test("handles missing provider configuration without exposing credentials", () => {
+  const emptyEnvironment = {} as NodeJS.ProcessEnv;
+  assert.equal(geminiConfigFromEnvironment(emptyEnvironment), undefined);
+  assert.throws(() => qlooConfigFromEnvironment(emptyEnvironment), /Invalid input/);
+});
+
+test("propagates unsupported cultural target responses", async () => {
+  const provider = new FakeProvider(undefined, { ok: false, error: { code: "UNSUPPORTED_CAPABILITY", providerId: "qloo", message: "Target type is unsupported" } });
+  const result = await engineFor(provider).analyze(scenario);
+  assert.equal(result.status, "partial");
+  assert.ok(result.errors.some((item) => item.code === "UNSUPPORTED_CAPABILITY"));
+});
+
+test("resolves a unique exact-name brand while preserving provider identity", () => {
+  const result = resolveEntityCandidates("Starbucks", [{ ...source, id: "brand:starbucks", name: "Starbucks", category: "brand" }], { category: "brand" });
+  assert.equal(result.status, "resolved");
+  assert.equal(result.entity?.id, "brand:starbucks");
+  assert.equal(result.entity?.category, "brand");
+});
+
+test("prefers the requested brand when place and brand names are identical", () => {
+  const place = { ...target, id: "place:starbucks", name: "Starbucks" };
+  const brand = { ...source, id: "brand:starbucks", name: "Starbucks" };
+  const result = resolveEntityCandidates("Starbucks", [place, brand], { category: "brand" });
+  assert.equal(result.status, "resolved");
+  assert.equal(result.entity?.id, brand.id);
+  assert.equal(result.entity?.category, "brand");
+});
+
+test("preserves ambiguity for multiple equally valid brand candidates", () => {
+  const first = { ...source, id: "brand:one", name: "Starbucks", metadata: { popularity: 0.2 } };
+  const second = { ...source, id: "brand:two", name: "Starbucks", metadata: { popularity: 0.99 } };
+  const result = resolveEntityCandidates("Starbucks", [first, second], { category: "brand" });
+  assert.equal(result.status, "ambiguous");
+  assert.equal(result.entity, undefined);
+  assert.deepEqual(result.candidates.map((candidate) => candidate.id), [first.id, second.id]);
+});
+
+test("does not select a non-exact or popularity-ranked fallback", () => {
+  const result = resolveEntityCandidates("Starbucks", [{ ...source, id: "brand:reserve", name: "Starbucks Reserve", metadata: { popularity: 1 } }], { category: "brand" });
+  assert.equal(result.status, "not-found");
+  assert.equal(result.entity, undefined);
+});
+
+test("resolves an explicitly selected provider entity only when identity and category match", () => {
+  const selected = { ...source, id: "brand:selected", name: "Starbucks - London" };
+  const result = resolveEntityCandidates("Starbucks", [selected], { category: "brand", selectedEntityId: selected.id });
+  assert.equal(result.status, "resolved");
+  assert.equal(result.entity?.id, selected.id);
+  assert.equal(result.entity?.category, "brand");
+  const wrongCategory = resolveEntityCandidates("Starbucks", [{ ...target, id: selected.id, name: selected.name }], { category: "brand", selectedEntityId: selected.id });
+  assert.equal(wrongCategory.status, "not-found");
+});
+
+test("returns no-match rather than inventing a fallback identity", () => {
+  const result = resolveEntityCandidates("Starbucks", [{ ...source, id: "brand:other", name: "Other Brand" }], { category: "brand" });
+  assert.equal(result.status, "not-found");
+  assert.equal(result.entity, undefined);
 });

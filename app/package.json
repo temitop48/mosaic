@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "node --experimental-strip-types --test --test-isolation=none --import ./test-aliases.mjs src/tests/*.test.ts",
-    "qloo:smoke": "node --experimental-strip-types --import ./test-aliases.mjs scripts/qloo-smoke.mjs"
+    "qloo:smoke": "node --experimental-strip-types --import ./test-aliases.mjs scripts/qloo-smoke.mjs",
+    "analysis:smoke": "node --experimental-strip-types --import ./test-aliases.mjs scripts/analysis-smoke.mjs"
   },
   "dependencies": {
     "@xyflow/react": "^12.12.0",

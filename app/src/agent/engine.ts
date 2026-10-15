@@ -1,4 +1,5 @@
 import { EvidenceRegistry } from "@/core/evidence/registry";
+import { buildEvidenceGraph, type EvidenceGraph } from "@/core/evidence/graph";
 import type { CulturalIntelligenceProvider } from "@/providers/interfaces/contracts";
 import {
   type AnalysisError,
@@ -7,13 +8,14 @@ import {
   type LaunchBlueprint,
   type LaunchScenarioInput,
 } from "@/agent/contracts";
-import { extractScenario, createResearchPlan } from "@/agent/planning";
+import { extractScenario, createResearchPlan, resolveEntityCandidates } from "@/agent/planning";
 import type { StructuredModelProvider } from "@/agent/model";
 import { LaunchBlueprintSchema } from "@/agent/contracts";
 
 type IdFactory = () => string;
 
 function error(code: AnalysisError["code"], message: string): AnalysisError { return { code, message }; }
+function emptyGraph(): EvidenceGraph { return { nodes: [], edges: [] }; }
 
 function validateBlueprintClaims(blueprint: LaunchBlueprint, registry: EvidenceRegistry): { blueprint: LaunchBlueprint; limitations: string[] } {
   const limitations: string[] = [];
@@ -64,31 +66,34 @@ export class DecisionEngine {
   async analyze(input: LaunchScenarioInput | unknown): Promise<AnalysisResult> {
     const analysisId = this.idFactory();
     const extracted = extractScenario(input);
-    if (!extracted.ok) return { analysisId, status: "failed", scenario: { productConcept: "", seedQueries: [], targetTypes: [] }, resolutions: [], evidence: [], limitations: [], errors: [error("INVALID_SCENARIO", extracted.message)] };
+    if (!extracted.ok) return { analysisId, status: "failed", scenario: { productConcept: "", seedQueries: [], targetTypes: [] }, resolutions: [], evidence: [], graph: emptyGraph(), limitations: [], errors: [error("INVALID_SCENARIO", extracted.message)] };
     const scenario = extracted.scenario;
     const planned = createResearchPlan(scenario, this.provider.getCapabilities());
-    if (!planned.ok) return { analysisId, status: "failed", scenario, resolutions: [], evidence: [], limitations: [], errors: [error(planned.code, planned.message)] };
+    if (!planned.ok) return { analysisId, status: "failed", scenario, resolutions: [], evidence: [], graph: emptyGraph(), limitations: [], errors: [error(planned.code, planned.message)] };
     const registry = new EvidenceRegistry();
     const resolutions = [];
     const errors: AnalysisError[] = [];
     for (const query of planned.plan.seedQueries) {
-      const result = await this.provider.searchEntities({ query, limit: planned.plan.maxEntityResults });
+      const result = await this.provider.searchEntities({ query, category: planned.plan.seedCategory, limit: planned.plan.maxEntityResults });
       if (!result.ok) {
         errors.push(error(result.error.code === "UNSUPPORTED_CAPABILITY" ? "UNSUPPORTED_CAPABILITY" : "PROVIDER_FAILURE", result.error.message));
         resolutions.push({ query, status: "not-found" as const, candidates: [] });
         continue;
       }
-      const candidates = result.data;
-      if (candidates.length === 0) {
-        errors.push(error("ENTITY_NOT_FOUND", `No entity matched seed query: ${query}`));
-        resolutions.push({ query, status: "not-found" as const, candidates });
-      } else if (candidates.length !== 1) {
-        errors.push(error("AMBIGUOUS_ENTITY", `Seed query returned multiple candidates: ${query}`));
-        resolutions.push({ query, status: "ambiguous" as const, candidates });
-      } else {
-        registry.registerEntity(candidates[0]);
-        resolutions.push({ query, status: "resolved" as const, entity: candidates[0], candidates });
+      const resolution = resolveEntityCandidates(query, result.data, {
+        category: planned.plan.seedCategory,
+        selectedEntityId: planned.plan.seedEntityId,
+      });
+      if (resolution.status === "not-found") {
+        errors.push(error("ENTITY_NOT_FOUND", planned.plan.seedCategory
+          ? `No exact ${planned.plan.seedCategory} entity matched seed query: ${query}`
+          : `No exact entity matched seed query: ${query}`));
+      } else if (resolution.status === "ambiguous") {
+        errors.push(error("AMBIGUOUS_ENTITY", `Multiple equally valid candidates matched seed query: ${query}`));
+      } else if (resolution.entity) {
+        registry.registerEntity(resolution.entity);
       }
+      resolutions.push(resolution);
     }
     for (const resolution of resolutions) {
       if (resolution.status !== "resolved" || !resolution.entity) continue;
@@ -133,15 +138,16 @@ export class DecisionEngine {
     }
     const evidence = registry.listValidatedEvidence();
     const limitations = [...planned.plan.limitations];
-    if (evidence.length === 0) return { analysisId, status: "partial", scenario, plan: planned.plan, resolutions, evidence, limitations, errors };
+    const graph = buildEvidenceGraph(registry);
+    if (evidence.length === 0) return { analysisId, status: "partial", scenario, plan: planned.plan, resolutions, evidence, graph, limitations, errors };
     const modelResult = await this.model.generateBlueprint({ productConcept: scenario.productConcept, launchLocation: scenario.launchLocation, requestedOutcome: scenario.requestedOutcome, evidence });
     if (!modelResult.ok) {
       const code = modelResult.error.code === "MODEL_TIMEOUT" ? "MODEL_TIMEOUT" : modelResult.error.code === "MODEL_UNAVAILABLE" ? "MODEL_UNAVAILABLE" : "MODEL_INVALID_OUTPUT";
       errors.push(error(code, modelResult.error.message));
-      return { analysisId, status: "partial", scenario, plan: planned.plan, resolutions, evidence, limitations, errors };
+      return { analysisId, status: "partial", scenario, plan: planned.plan, resolutions, evidence, graph, limitations, errors };
     }
     const checked = validateBlueprintClaims(modelResult.blueprint, registry);
     limitations.push(...checked.limitations);
-    return { analysisId, status: errors.length ? "partial" : "completed", scenario, plan: planned.plan, resolutions, evidence, blueprint: checked.blueprint, limitations, errors };
+    return { analysisId, status: errors.length ? "partial" : "completed", scenario, plan: planned.plan, resolutions, evidence, graph, blueprint: checked.blueprint, limitations, errors };
   }
 }
