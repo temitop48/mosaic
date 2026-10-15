@@ -176,8 +176,12 @@ export function normalizeQlooAffinity(
     if (!objectEntityId || score === undefined || !Number.isFinite(score)) return [];
     const parsed = AffinityEvidenceSchema.safeParse({
       kind: "affinity",
+      id: `qloo:affinity:${encodeURIComponent(request.entityId)}:${encodeURIComponent(objectEntityId)}:${encodeURIComponent(queryParameters["filter.location.query"] ?? "global")}`,
       subjectEntityId: request.entityId,
+      subjectEntityCategory: request.sourceEntityCategory,
+      subjectEntityName: request.sourceEntityName,
       objectEntityId,
+      objectEntityCategory: toCategory([request.targetType]),
       objectEntityName: typeof item.name === "string" && item.name.trim() ? item.name : undefined,
       providerScore: score,
       providerScoreScale: "qloo:affinity",

@@ -1,4 +1,4 @@
-import type { CulturalEntity, GeographicContext } from "@/core/entities/types";
+import type { CulturalEntity, EntityCategory, GeographicContext } from "@/core/entities/types";
 import type { CulturalEvidence } from "@/core/evidence/types";
 
 export type ProviderCapabilities = Readonly<{
@@ -17,6 +17,8 @@ export type EntitySearchRequest = {
 
 export type AffinityDiscoveryRequest = {
   entityId: string;
+  sourceEntityCategory: EntityCategory;
+  sourceEntityName?: string;
   targetType: string;
   locationQuery?: string;
   geography?: GeographicContext;

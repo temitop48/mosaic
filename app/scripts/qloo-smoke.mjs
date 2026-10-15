@@ -29,6 +29,8 @@ console.log(`Seed entity category: ${seed.category}`);
 
 const affinity = await provider.discoverAffinity({
   entityId: seed.id,
+  sourceEntityCategory: seed.category,
+  sourceEntityName: seed.name,
   targetType: "urn:entity:place",
   locationQuery: "London",
   geography: { city: "London" },

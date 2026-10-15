@@ -25,8 +25,11 @@ test("domain schemas require identity, scores, query parameters, and provenance"
   assert.equal(CulturalEntitySchema.safeParse({ name: "missing id" }).success, false);
   const evidence = AffinityEvidenceSchema.parse({
     kind: "affinity",
+    id: "qloo:insights:a:b",
     subjectEntityId: "a",
+    subjectEntityCategory: "brand",
     objectEntityId: "b",
+    objectEntityCategory: "place",
     providerScore: 0.82,
     queryParameters: { "filter.type": "urn:entity:place" },
     provenance: {
@@ -103,6 +106,8 @@ test("entity-based affinity preserves scores, explainability, geography, and que
   );
   const result = await provider.discoverAffinity({
     entityId: "seed-1",
+    sourceEntityCategory: "brand",
+    sourceEntityName: "Starbucks",
     targetType: "urn:entity:place",
     locationQuery: "London",
     geography: { city: "London" },
@@ -119,6 +124,9 @@ test("entity-based affinity preserves scores, explainability, geography, and que
   if (result.ok) {
     assert.equal(result.data.length, 1);
     assert.equal(result.data[0].providerScore, 0.82);
+    assert.equal(result.data[0].subjectEntityCategory, "brand");
+    assert.equal(result.data[0].subjectEntityName, "Starbucks");
+    assert.equal(result.data[0].objectEntityCategory, "place");
     assert.equal(result.data[0].objectEntityName, "Fixture Place");
     assert.deepEqual(result.data[0].explainability, {
       "signal.interests.entities": [{ entity_id: "seed-1", score: 1 }],
@@ -134,7 +142,7 @@ test("malformed insight entities without actual affinity scores are discarded", 
     { entity_id: "missing-score", name: "No Score", popularity: 0.99 },
     { entity_id: "bad-score", name: "Bad Score", query: { affinity: "high" } },
   ] }, query: {} , success: true }), { status: 200 }));
-  const result = await provider.discoverAffinity({ entityId: "seed-1", targetType: "urn:entity:brand" });
+  const result = await provider.discoverAffinity({ entityId: "seed-1", sourceEntityCategory: "brand", targetType: "urn:entity:brand" });
   assert.equal(result.ok, true);
   if (result.ok) assert.equal(result.data.length, 0);
 });
@@ -177,7 +185,7 @@ test("unsupported insight target types are rejected before making a request", as
     requests += 1;
     return new Response(JSON.stringify({}), { status: 200 });
   });
-  const result = await provider.discoverAffinity({ entityId: "seed-1", targetType: "urn:audience:unknown" });
+  const result = await provider.discoverAffinity({ entityId: "seed-1", sourceEntityCategory: "brand", targetType: "urn:audience:unknown" });
   assert.equal(result.ok, false);
   if (!result.ok) assert.equal(result.error.code, "CONFIGURATION_ERROR");
   assert.equal(requests, 0);

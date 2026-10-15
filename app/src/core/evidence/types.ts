@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { GeographicContextSchema } from "@/core/entities/types";
+import { EntityCategorySchema, GeographicContextSchema } from "@/core/entities/types";
 
 export const EvidenceKindSchema = z.enum([
   "affinity",
@@ -16,8 +16,12 @@ export const EvidenceProvenanceSchema = z.object({
 
 export const AffinityEvidenceSchema = z.object({
   kind: z.literal("affinity"),
+  id: z.string().trim().min(1),
   subjectEntityId: z.string().trim().min(1),
+  subjectEntityCategory: EntityCategorySchema,
+  subjectEntityName: z.string().trim().min(1).optional(),
   objectEntityId: z.string().trim().min(1),
+  objectEntityCategory: EntityCategorySchema,
   objectEntityName: z.string().trim().min(1).optional(),
   providerScore: z.number().finite().optional(),
   providerScoreLabel: z.string().trim().min(1).optional(),
