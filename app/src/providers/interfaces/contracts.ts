@@ -17,8 +17,11 @@ export type EntitySearchRequest = {
 
 export type AffinityDiscoveryRequest = {
   entityId: string;
+  targetType: string;
+  locationQuery?: string;
   geography?: GeographicContext;
   limit?: number;
+  explainability?: boolean;
 };
 
 export type ExplainabilityRequest = { evidenceId: string };
@@ -27,12 +30,18 @@ export type ProviderErrorCode =
   | "UNSUPPORTED_CAPABILITY"
   | "CONFIGURATION_ERROR"
   | "NETWORK_ERROR"
+  | "AUTHENTICATION_ERROR"
+  | "RATE_LIMITED"
+  | "TIMEOUT"
+  | "UPSTREAM_ERROR"
   | "INVALID_RESPONSE";
 
 export type ProviderError = {
   code: ProviderErrorCode;
   providerId: string;
   message: string;
+  status?: number;
+  retryAfterMs?: number;
 };
 
 export type ProviderResult<T> =

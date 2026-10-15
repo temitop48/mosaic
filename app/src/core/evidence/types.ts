@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { GeographicContextSchema } from "@/core/entities/types";
 
 export const EvidenceKindSchema = z.enum([
   "affinity",
@@ -17,9 +18,13 @@ export const AffinityEvidenceSchema = z.object({
   kind: z.literal("affinity"),
   subjectEntityId: z.string().trim().min(1),
   objectEntityId: z.string().trim().min(1),
+  objectEntityName: z.string().trim().min(1).optional(),
   providerScore: z.number().finite().optional(),
   providerScoreLabel: z.string().trim().min(1).optional(),
   providerScoreScale: z.string().trim().min(1).optional(),
+  explainability: z.record(z.string(), z.unknown()).optional(),
+  geographicContext: GeographicContextSchema.optional(),
+  queryParameters: z.record(z.string(), z.string()),
   provenance: EvidenceProvenanceSchema,
   interpretation: z.string().trim().min(1).optional(),
   verified: z.boolean().default(true),

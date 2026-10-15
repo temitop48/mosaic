@@ -1,19 +1,21 @@
-# MOSAIC Phase 0 architecture
+# MOSAIC Phase 1 architecture
 
 MOSAIC is a modular monolith. The domain contracts under `src/core` describe entities, evidence, relationships, counterfactuals, and launch decisions without importing a provider or framework. Provider contracts under `src/providers/interfaces` define the smallest capability-based boundary needed by the application. The registry composes providers at the application boundary.
 
 ## Provider adapters
 
-`QlooProvider` is an infrastructure adapter. It receives validated server-side configuration and an injectable HTTP client, so tests do not need credentials or live requests. Its response normalizer turns only identifiable Qloo records into domain entities; absent or ambiguous records are discarded rather than invented. Its capability declaration makes unsupported features explicit.
+`QlooProvider` is an infrastructure adapter. It receives validated server-side configuration and an injectable HTTP client, so tests do not need credentials or live requests. `QlooHttpClient` owns the server-side `X-Api-Key` header and timeout boundary. The adapter uses `GET /search` for entity resolution and `GET /v2/insights` for entity-based affinity discovery.
 
-`QLOO_API_KEY` and `QLOO_API_BASE_URL` are server-side variables. The adapter is not imported by client components, and no `NEXT_PUBLIC_QLOO_API_KEY` is used. Endpoint paths are configurable because the exact hackathon API route contract is intentionally isolated from the domain.
+The adapter normalizes only identifiable Qloo records into domain entities and only emits affinity evidence when Qloo supplies a finite `query.affinity` value. Popularity is retained as metadata and is never used as affinity. Per-result explainability is preserved as provider-native data when requested. Supported Insights target types are explicitly allow-listed from Qloo's documented entity categories; unsupported types fail before a request is made.
+
+`QLOO_API_KEY`, `QLOO_API_BASE_URL`, `QLOO_SEARCH_PATH`, `QLOO_INSIGHTS_PATH`, and `QLOO_TIMEOUT_MS` are server-side variables. The adapter is not imported by client components, and no `NEXT_PUBLIC_QLOO_API_KEY` is used. The default base URL is the verified hackathon host and the default paths are `/search` and `/v2/insights`.
 
 ## Evidence and dependency direction
 
-Every provider-backed evidence and relationship record carries both `providerId` and `sourceReference`, plus retrieval time. Provider scores remain provider-native: no cross-provider normalization or invented score is performed. Interpretations and recommendations must reference evidence and retain caveats. Commercial success probability is intentionally excluded from launch decisions.
+Every provider-backed evidence and relationship record carries both `providerId` and `sourceReference`, plus retrieval time. Qloo affinity evidence additionally retains subject and target IDs, the actual provider affinity, explainability, geographic context, and the exact non-secret query parameters. Provider scores remain provider-native: no cross-provider normalization or invented score is performed. Interpretations and recommendations must reference evidence and retain caveats. Commercial success probability is intentionally excluded from launch decisions.
 
 The dependency direction is `core <- providers/interfaces <- providers/adapters <- app composition`. A future provider implements `CulturalIntelligenceProvider`, declares its own capabilities and score semantics, then registers itself; core schemas do not change.
 
-## Assumptions and limitations
+## Phase 1 assumptions and limitations
 
-The Qloo adapter is a skeleton: its paths and response field mapping are deliberately conservative and must be aligned with the verified hackathon API documentation before production use. Affinity discovery currently returns an explicit unsupported-capability result until the response contract is verified. No database, graph store, microservice, or live intelligence is introduced in Phase 0.
+Entity search, documented entity-based Insights discovery, geographic locality filtering, per-result explainability preservation, timeout handling, and structured authentication/rate-limit/upstream errors are implemented with mocked automated tests. Standalone explainability retrieval remains unsupported because the verified contract supplies explainability as part of the Insights response. No audience, tag-only, demographics, or other cross-domain operation is claimed beyond the documented entity target types. No database, graph store, microservice, live research workflow, or UI change is introduced in Phase 1.

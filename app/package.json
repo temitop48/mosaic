@@ -7,7 +7,8 @@
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --experimental-strip-types --test --import ./test-aliases.mjs src/tests/architecture.test.ts"
+    "test": "node --experimental-strip-types --test --test-isolation=none --import ./test-aliases.mjs src/tests/*.test.ts",
+    "qloo:smoke": "node --experimental-strip-types --import ./test-aliases.mjs scripts/qloo-smoke.mjs"
   },
   "dependencies": {
     "@xyflow/react": "^12.12.0",
