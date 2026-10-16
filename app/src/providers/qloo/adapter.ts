@@ -233,6 +233,7 @@ export class QlooProvider implements CulturalIntelligenceProvider {
     entitySearch: true,
     affinityDiscovery: true,
     geographicFiltering: true,
+    affinityExplainability: true,
     explainability: false,
   };
 

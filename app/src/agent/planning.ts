@@ -67,7 +67,7 @@ export function createResearchPlan(
       locationQuery: scenario.launchLocation,
       maxEntityResults: 5,
       maxAffinityResults: 20,
-      explainability: capabilities.explainability,
+      explainability: capabilities.affinityExplainability ?? capabilities.explainability,
       limitations: [
         "Affinity indicates a provider-reported cultural association, not demand, partnership, causation or commercial suitability.",
         "Scores from different geographic queries are not treated as directly comparable absolute market-fit scores.",

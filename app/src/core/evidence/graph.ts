@@ -12,6 +12,7 @@ export const EvidenceGraphEdgeSchema = z.object({
   objectEntityId: z.string().trim().min(1),
   objectEntityCategory: EntityCategorySchema,
   providerScore: z.number().finite(),
+  explainability: z.record(z.string(), z.unknown()).optional(),
   geographicContext: z.object({
     countryCode: z.string().length(2).optional(),
     region: z.string().min(1).optional(),
@@ -43,6 +44,7 @@ function edgeFromEvidence(evidence: Extract<CulturalEvidence, { kind: "affinity"
     objectEntityId: evidence.objectEntityId,
     objectEntityCategory: evidence.objectEntityCategory,
     providerScore: evidence.providerScore as number,
+    explainability: evidence.explainability,
     geographicContext: evidence.geographicContext,
     provenance: evidence.provenance,
   };

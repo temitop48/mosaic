@@ -84,6 +84,11 @@ export type AnalysisError = {
     | "EVIDENCE_VALIDATION_FAILURE"
     | "MODEL_UNAVAILABLE"
     | "MODEL_TIMEOUT"
+    | "MODEL_NOT_FOUND"
+    | "MODEL_AUTHENTICATION_ERROR"
+    | "MODEL_RATE_LIMITED"
+    | "MODEL_UPSTREAM_ERROR"
+    | "MODEL_ERROR"
     | "MODEL_INVALID_OUTPUT";
   message: string;
 };

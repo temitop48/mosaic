@@ -142,7 +142,7 @@ export class DecisionEngine {
     if (evidence.length === 0) return { analysisId, status: "partial", scenario, plan: planned.plan, resolutions, evidence, graph, limitations, errors };
     const modelResult = await this.model.generateBlueprint({ productConcept: scenario.productConcept, launchLocation: scenario.launchLocation, requestedOutcome: scenario.requestedOutcome, evidence });
     if (!modelResult.ok) {
-      const code = modelResult.error.code === "MODEL_TIMEOUT" ? "MODEL_TIMEOUT" : modelResult.error.code === "MODEL_UNAVAILABLE" ? "MODEL_UNAVAILABLE" : "MODEL_INVALID_OUTPUT";
+      const code = modelResult.error.code;
       errors.push(error(code, modelResult.error.message));
       return { analysisId, status: "partial", scenario, plan: planned.plan, resolutions, evidence, graph, limitations, errors };
     }

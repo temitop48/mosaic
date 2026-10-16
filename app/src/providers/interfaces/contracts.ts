@@ -5,6 +5,9 @@ export type ProviderCapabilities = Readonly<{
   entitySearch: boolean;
   affinityDiscovery: boolean;
   geographicFiltering: boolean;
+  /** Explainability supported on affinity discovery requests. */
+  affinityExplainability?: boolean;
+  /** Standalone explanation lookup capability. */
   explainability: boolean;
 }>;
 
