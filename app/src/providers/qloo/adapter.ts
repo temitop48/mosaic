@@ -7,6 +7,7 @@ import {
   type EntitySearchRequest,
   type ExplainabilityRequest,
   type ProviderCapabilities,
+  type ProviderDiagnostic,
   type ProviderError,
   type ProviderResult,
 } from "@/providers/interfaces/contracts";
@@ -25,33 +26,100 @@ export class QlooTimeoutError extends Error {
 export class QlooHttpClient {
   private readonly request: QlooHttpRequest;
   private readonly timeoutMs: number;
+  private readonly maxAttempts: number;
+  private readonly retryBaseDelayMs: number;
+  private readonly overallTimeoutMs: number;
+  private readonly random: () => number;
+  private readonly sleep: (milliseconds: number) => Promise<void>;
+  private readonly diagnostics: ProviderDiagnostic[] = [];
 
   constructor(
     request: QlooHttpRequest = fetch,
-    timeoutMs = 10_000,
+    timeoutMs = 25_000,
+    maxAttempts = 2,
+    retryBaseDelayMs = 250,
+    overallTimeoutMs = 60_000,
+    random: () => number = Math.random,
+    sleep: (milliseconds: number) => Promise<void> = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)),
   ) {
     this.request = request;
     this.timeoutMs = timeoutMs;
+    this.maxAttempts = Math.max(1, Math.floor(maxAttempts));
+    this.retryBaseDelayMs = Math.max(0, retryBaseDelayMs);
+    this.overallTimeoutMs = Math.max(this.timeoutMs, overallTimeoutMs);
+    this.random = random;
+    this.sleep = sleep;
   }
 
   async get(url: string, apiKey: string): Promise<Response> {
-    const controller = new AbortController();
-    let timeoutId: ReturnType<typeof setTimeout> | undefined;
-    const requestPromise = this.request(url, {
-      signal: controller.signal,
-      headers: { "X-Api-Key": apiKey, accept: "application/json" },
-    });
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      timeoutId = setTimeout(() => {
-        controller.abort();
-        reject(new QlooTimeoutError());
-      }, this.timeoutMs);
-    });
-    try {
-      return await Promise.race([requestPromise, timeoutPromise]);
-    } finally {
-      if (timeoutId) clearTimeout(timeoutId);
+    const startedAt = Date.now();
+    const deadline = startedAt + this.overallTimeoutMs;
+    let lastError: unknown;
+    let lastStatus: number | undefined;
+    for (let attempt = 1; attempt <= this.maxAttempts; attempt += 1) {
+      const remainingMs = deadline - Date.now();
+      if (remainingMs <= 0) {
+        const timeout = new QlooTimeoutError();
+        this.diagnostics.push({ providerId: "qloo", operation: "entity-search", outcome: "error", errorCode: "TIMEOUT", attempts: attempt - 1, retryCount: Math.max(0, attempt - 2), durationMs: Date.now() - startedAt, timeoutMs: this.timeoutMs });
+        throw timeout;
+      }
+      const controller = new AbortController();
+      let timeoutId: ReturnType<typeof setTimeout> | undefined;
+      try {
+        const requestPromise = this.request(url, {
+          signal: controller.signal,
+          headers: { "X-Api-Key": apiKey, accept: "application/json" },
+        });
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          timeoutId = setTimeout(() => {
+            controller.abort();
+            reject(new QlooTimeoutError());
+          }, Math.min(this.timeoutMs, remainingMs));
+        });
+        const response = await Promise.race([requestPromise, timeoutPromise]);
+        lastStatus = response.status;
+        if (!this.shouldRetry(response.status) || attempt === this.maxAttempts) {
+          this.diagnostics.push({ providerId: "qloo", operation: "entity-search", outcome: response.ok ? "success" : "error", status: response.status, attempts: attempt, retryCount: attempt - 1, durationMs: Date.now() - startedAt, timeoutMs: this.timeoutMs });
+          return response;
+        }
+        await this.delay(Math.min(this.retryDelay(response, attempt), Math.max(0, deadline - Date.now())));
+      } catch (error) {
+        lastError = error;
+        if (attempt === this.maxAttempts || !this.shouldRetryException(error)) {
+          this.diagnostics.push({ providerId: "qloo", operation: "entity-search", outcome: "error", status: lastStatus, errorCode: error instanceof QlooTimeoutError || (error instanceof DOMException && error.name === "AbortError") ? "TIMEOUT" : "NETWORK_ERROR", attempts: attempt, retryCount: attempt - 1, durationMs: Date.now() - startedAt, timeoutMs: this.timeoutMs });
+          throw error;
+        }
+        await this.delay(Math.min(this.retryDelay(undefined, attempt), Math.max(0, deadline - Date.now())));
+      } finally {
+        if (timeoutId) clearTimeout(timeoutId);
+      }
     }
+    throw lastError instanceof Error ? lastError : new Error("Qloo request failed");
+  }
+
+  takeDiagnostics(): ProviderDiagnostic[] {
+    const result = [...this.diagnostics];
+    this.diagnostics.length = 0;
+    return result;
+  }
+
+  private shouldRetry(status: number): boolean {
+    return status === 408 || status === 425 || status === 429 || status >= 500;
+  }
+
+  private shouldRetryException(error: unknown): boolean {
+    return error instanceof QlooTimeoutError || (error instanceof DOMException && error.name === "AbortError") || error instanceof TypeError;
+  }
+
+  private retryDelay(response: Response | undefined, attempt: number): number {
+    const retryAfter = response ? retryAfterMs(response) : undefined;
+    const exponential = this.retryBaseDelayMs * (2 ** (attempt - 1));
+    const jitter = exponential > 0 ? this.random() * Math.min(100, exponential) : 0;
+    return Math.min(retryAfter ?? exponential + jitter, 2_000);
+  }
+
+  private delay(milliseconds: number): Promise<void> {
+    return this.sleep(Math.max(0, milliseconds));
   }
 }
 
@@ -243,7 +311,7 @@ export class QlooProvider implements CulturalIntelligenceProvider {
     clock: () => string = () => new Date().toISOString(),
   ) {
     this.config = config;
-    this.httpClient = httpClient instanceof QlooHttpClient ? httpClient : new QlooHttpClient(httpClient, config.timeoutMs);
+    this.httpClient = httpClient instanceof QlooHttpClient ? httpClient : new QlooHttpClient(httpClient, config.timeoutMs, config.maxAttempts, config.retryBaseDelayMs, config.overallTimeoutMs);
     this.clock = clock;
   }
 
@@ -289,19 +357,19 @@ export class QlooProvider implements CulturalIntelligenceProvider {
   private async requestEntities(url: URL): Promise<ProviderResult<CulturalEntity[]>> {
     try {
       const response = await this.httpClient.get(url.toString(), this.config.apiKey);
-      if (!response.ok) return { ok: false, error: responseError(this.id, response) };
+      if (!response.ok) return { ok: false, error: responseError(this.id, response), diagnostics: this.takeDiagnostics("entity-search") };
       const payload: unknown = await response.json();
-      if (!isRecord(payload)) return { ok: false, error: { code: "INVALID_RESPONSE", providerId: this.id, message: "Qloo search response was not an object" } };
-      return { ok: true, data: normalizeQlooEntities(payload, this.clock()) };
+      if (!isRecord(payload)) return { ok: false, error: { code: "INVALID_RESPONSE", providerId: this.id, message: "Qloo search response was not an object" }, diagnostics: this.takeDiagnostics("entity-search") };
+      return { ok: true, data: normalizeQlooEntities(payload, this.clock()), diagnostics: this.takeDiagnostics("entity-search") };
     } catch (error) {
-      return { ok: false, error: this.errorFromException(error) };
+      return { ok: false, error: this.errorFromException(error), diagnostics: this.takeDiagnostics("entity-search") };
     }
   }
 
   private async requestAffinity(url: URL, request: AffinityDiscoveryRequest): Promise<ProviderResult<CulturalEvidence[]>> {
     try {
       const response = await this.httpClient.get(url.toString(), this.config.apiKey);
-      if (!response.ok) return { ok: false, error: responseError(this.id, response) };
+      if (!response.ok) return { ok: false, error: responseError(this.id, response), diagnostics: this.takeDiagnostics("affinity-discovery") };
       const payload: unknown = await response.json();
       if (
         !isRecord(payload) ||
@@ -310,15 +378,20 @@ export class QlooProvider implements CulturalIntelligenceProvider {
         !Array.isArray(payload.results.entities) ||
         !isRecord(payload.query)
       ) {
-        return { ok: false, error: { code: "INVALID_RESPONSE", providerId: this.id, message: "Qloo insights response did not contain success, results.entities, and query" } };
+        return { ok: false, error: { code: "INVALID_RESPONSE", providerId: this.id, message: "Qloo insights response did not contain success, results.entities, and query" }, diagnostics: this.takeDiagnostics("affinity-discovery") };
       }
       return {
         ok: true,
         data: normalizeQlooAffinity(payload, request, Object.fromEntries(url.searchParams.entries()), this.clock()),
+        diagnostics: this.takeDiagnostics("affinity-discovery"),
       };
     } catch (error) {
-      return { ok: false, error: this.errorFromException(error) };
+      return { ok: false, error: this.errorFromException(error), diagnostics: this.takeDiagnostics("affinity-discovery") };
     }
+  }
+
+  private takeDiagnostics(operation: ProviderDiagnostic["operation"]): ProviderDiagnostic[] {
+    return this.httpClient.takeDiagnostics().map((item) => ({ ...item, operation }));
   }
 
   private errorFromException(error: unknown): ProviderError {

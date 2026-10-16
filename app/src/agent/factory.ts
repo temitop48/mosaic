@@ -15,3 +15,13 @@ export function createProductionDecisionEngine(): DecisionEngine {
   if (!geminiConfig) throw new Error("GEMINI_API_KEY is not configured on the server");
   return new DecisionEngine(new QlooProvider(qlooConfig), new GeminiModelProvider(geminiConfig));
 }
+
+export function createProductionResearchEngine(): DecisionEngine {
+  let qlooConfig;
+  try {
+    qlooConfig = qlooConfigFromEnvironment();
+  } catch {
+    throw new Error("Qloo server configuration is unavailable");
+  }
+  return new DecisionEngine(new QlooProvider(qlooConfig));
+}

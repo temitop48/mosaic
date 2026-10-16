@@ -1,4 +1,5 @@
 export * from "./core/counterfactuals/contracts";
+export * from "./core/counterfactuals/engine";
 export * from "./core/decisions/contracts";
 export * from "./core/entities/types";
 export * from "./core/evidence/types";
@@ -15,5 +16,6 @@ export * from "./agent/contracts";
 export * from "./agent/planning";
 export * from "./agent/model";
 export * from "./agent/engine";
+export * from "./agent/factory";
 export * from "./providers/gemini/config";
 export * from "./providers/gemini/adapter";

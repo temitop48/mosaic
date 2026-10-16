@@ -1,6 +1,6 @@
 import { EvidenceRegistry } from "@/core/evidence/registry";
 import { buildEvidenceGraph, type EvidenceGraph } from "@/core/evidence/graph";
-import type { CulturalIntelligenceProvider } from "@/providers/interfaces/contracts";
+import type { CulturalIntelligenceProvider, ProviderDiagnostic } from "@/providers/interfaces/contracts";
 import {
   type AnalysisError,
   type AnalysisResult,
@@ -51,11 +51,11 @@ function validateBlueprintClaims(blueprint: LaunchBlueprint, registry: EvidenceR
 export class DecisionEngine {
   private readonly idFactory: IdFactory;
   private readonly provider: CulturalIntelligenceProvider;
-  private readonly model: StructuredModelProvider;
+  private readonly model?: StructuredModelProvider;
 
   constructor(
     provider: CulturalIntelligenceProvider,
-    model: StructuredModelProvider,
+    model?: StructuredModelProvider,
     idFactory: IdFactory = () => crypto.randomUUID(),
   ) {
     this.provider = provider;
@@ -63,18 +63,21 @@ export class DecisionEngine {
     this.idFactory = idFactory;
   }
 
-  async analyze(input: LaunchScenarioInput | unknown): Promise<AnalysisResult> {
+  /** Executes only provider-backed research, without requiring Gemini. */
+  async research(input: LaunchScenarioInput | unknown): Promise<AnalysisResult> {
     const analysisId = this.idFactory();
     const extracted = extractScenario(input);
-    if (!extracted.ok) return { analysisId, status: "failed", scenario: { productConcept: "", seedQueries: [], targetTypes: [] }, resolutions: [], evidence: [], graph: emptyGraph(), limitations: [], errors: [error("INVALID_SCENARIO", extracted.message)] };
+    const diagnostics: ProviderDiagnostic[] = [];
+    if (!extracted.ok) return { analysisId, status: "failed", scenario: { productConcept: "", seedQueries: [], targetTypes: [] }, resolutions: [], evidence: [], graph: emptyGraph(), limitations: [], errors: [error("INVALID_SCENARIO", extracted.message)], diagnostics };
     const scenario = extracted.scenario;
     const planned = createResearchPlan(scenario, this.provider.getCapabilities());
-    if (!planned.ok) return { analysisId, status: "failed", scenario, resolutions: [], evidence: [], graph: emptyGraph(), limitations: [], errors: [error(planned.code, planned.message)] };
+    if (!planned.ok) return { analysisId, status: "failed", scenario, resolutions: [], evidence: [], graph: emptyGraph(), limitations: [], errors: [error(planned.code, planned.message)], diagnostics };
     const registry = new EvidenceRegistry();
     const resolutions = [];
     const errors: AnalysisError[] = [];
     for (const query of planned.plan.seedQueries) {
       const result = await this.provider.searchEntities({ query, category: planned.plan.seedCategory, limit: planned.plan.maxEntityResults });
+      diagnostics.push(...(result.diagnostics ?? []));
       if (!result.ok) {
         errors.push(error(result.error.code === "UNSUPPORTED_CAPABILITY" ? "UNSUPPORTED_CAPABILITY" : "PROVIDER_FAILURE", result.error.message));
         resolutions.push({ query, status: "not-found" as const, candidates: [] });
@@ -85,9 +88,7 @@ export class DecisionEngine {
         selectedEntityId: planned.plan.seedEntityId,
       });
       if (resolution.status === "not-found") {
-        errors.push(error("ENTITY_NOT_FOUND", planned.plan.seedCategory
-          ? `No exact ${planned.plan.seedCategory} entity matched seed query: ${query}`
-          : `No exact entity matched seed query: ${query}`));
+        errors.push(error("ENTITY_NOT_FOUND", planned.plan.seedCategory ? `No exact ${planned.plan.seedCategory} entity matched seed query: ${query}` : `No exact entity matched seed query: ${query}`));
       } else if (resolution.status === "ambiguous") {
         errors.push(error("AMBIGUOUS_ENTITY", `Multiple equally valid candidates matched seed query: ${query}`));
       } else if (resolution.entity) {
@@ -95,9 +96,13 @@ export class DecisionEngine {
       }
       resolutions.push(resolution);
     }
+    const affinityRequests = new Set<string>();
     for (const resolution of resolutions) {
       if (resolution.status !== "resolved" || !resolution.entity) continue;
       for (const targetType of planned.plan.targetTypes) {
+        const requestKey = JSON.stringify([resolution.entity.id, targetType, planned.plan.locationQuery ?? "", planned.plan.explainability]);
+        if (affinityRequests.has(requestKey)) continue;
+        affinityRequests.add(requestKey);
         const result = await this.provider.discoverAffinity({
           entityId: resolution.entity.id,
           sourceEntityCategory: resolution.entity.category,
@@ -107,6 +112,7 @@ export class DecisionEngine {
           limit: planned.plan.maxAffinityResults,
           explainability: planned.plan.explainability,
         });
+        diagnostics.push(...(result.diagnostics ?? []));
         if (!result.ok) {
           errors.push(error(result.error.code === "UNSUPPORTED_CAPABILITY" ? "UNSUPPORTED_CAPABILITY" : "PROVIDER_FAILURE", result.error.message));
           continue;
@@ -116,10 +122,6 @@ export class DecisionEngine {
           continue;
         }
         for (const evidence of result.data) {
-          // The provider contract carries target identity on each normalized
-          // evidence record. Register only that identity context; the edge,
-          // score, geography and provenance still come exclusively from the
-          // provider evidence and are validated by the Phase 2 registry.
           if (evidence.kind === "affinity" && !registry.has(evidence.objectEntityId)) {
             registry.registerEntity({
               id: evidence.objectEntityId,
@@ -139,15 +141,49 @@ export class DecisionEngine {
     const evidence = registry.listValidatedEvidence();
     const limitations = [...planned.plan.limitations];
     const graph = buildEvidenceGraph(registry);
-    if (evidence.length === 0) return { analysisId, status: "partial", scenario, plan: planned.plan, resolutions, evidence, graph, limitations, errors };
-    const modelResult = await this.model.generateBlueprint({ productConcept: scenario.productConcept, launchLocation: scenario.launchLocation, requestedOutcome: scenario.requestedOutcome, evidence });
+    return {
+      analysisId,
+      status: errors.length || evidence.length === 0 ? "partial" : "completed",
+      scenario,
+      plan: planned.plan,
+      resolutions,
+      evidence,
+      graph,
+      limitations,
+      errors,
+      diagnostics,
+    };
+  }
+
+  async analyze(input: LaunchScenarioInput | unknown): Promise<AnalysisResult> {
+    const researched = await this.research(input);
+    if (!this.model) {
+      if (researched.evidence.length > 0) researched.errors.push(error("MODEL_UNAVAILABLE", "No strategic interpretation provider is configured"));
+      researched.status = "partial";
+      return researched;
+    }
+    if (researched.evidence.length === 0) return researched;
+    const modelResult = await this.model.generateBlueprint({
+      productConcept: researched.scenario.productConcept,
+      launchLocation: researched.scenario.launchLocation,
+      requestedOutcome: researched.scenario.requestedOutcome,
+      evidence: researched.evidence,
+    });
     if (!modelResult.ok) {
-      const code = modelResult.error.code;
-      errors.push(error(code, modelResult.error.message));
-      return { analysisId, status: "partial", scenario, plan: planned.plan, resolutions, evidence, graph, limitations, errors };
+      researched.errors.push(error(modelResult.error.code, modelResult.error.message));
+      researched.status = "partial";
+      return researched;
+    }
+    const registry = new EvidenceRegistry();
+    for (const resolution of researched.resolutions) if (resolution.entity) registry.registerEntity(resolution.entity);
+    for (const evidence of researched.evidence) {
+      if (evidence.kind === "affinity" && !registry.has(evidence.objectEntityId)) registry.registerEntity({ id: evidence.objectEntityId, providerId: evidence.provenance.providerId, name: evidence.objectEntityName ?? evidence.objectEntityId, category: evidence.objectEntityCategory, geographicContext: evidence.geographicContext, sourceReference: `${evidence.provenance.providerId}:entity:${evidence.objectEntityId}`, metadata: { providerEntityId: evidence.objectEntityId } });
+      registry.registerEvidence(evidence);
     }
     const checked = validateBlueprintClaims(modelResult.blueprint, registry);
-    limitations.push(...checked.limitations);
-    return { analysisId, status: errors.length ? "partial" : "completed", scenario, plan: planned.plan, resolutions, evidence, graph, blueprint: checked.blueprint, limitations, errors };
+    researched.limitations.push(...checked.limitations);
+    researched.blueprint = checked.blueprint;
+    researched.status = researched.errors.length ? "partial" : "completed";
+    return researched;
   }
 }

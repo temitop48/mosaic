@@ -2,6 +2,7 @@ import { z } from "zod";
 import { EntityCategorySchema, type CulturalEntity, type EntityCategory } from "@/core/entities/types";
 import type { CulturalEvidence } from "@/core/evidence/types";
 import type { EvidenceGraph } from "@/core/evidence/graph";
+import type { ProviderDiagnostic } from "@/providers/interfaces/contracts";
 
 export const LaunchScenarioInputSchema = z.object({
   text: z.string().trim().min(1).max(2_000).optional(),
@@ -104,4 +105,5 @@ export type AnalysisResult = {
   blueprint?: LaunchBlueprint;
   limitations: string[];
   errors: AnalysisError[];
+  diagnostics: ProviderDiagnostic[];
 };

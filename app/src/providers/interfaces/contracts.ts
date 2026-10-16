@@ -50,8 +50,21 @@ export type ProviderError = {
 };
 
 export type ProviderResult<T> =
-  | { ok: true; data: T }
-  | { ok: false; error: ProviderError };
+  | { ok: true; data: T; diagnostics?: ProviderDiagnostic[] }
+  | { ok: false; error: ProviderError; diagnostics?: ProviderDiagnostic[] };
+
+/** Sanitized operational facts; never includes URLs, API keys, or response bodies. */
+export type ProviderDiagnostic = {
+  providerId: string;
+  operation: "entity-search" | "affinity-discovery";
+  outcome: "success" | "error";
+  status?: number;
+  errorCode?: ProviderErrorCode;
+  attempts: number;
+  retryCount: number;
+  durationMs: number;
+  timeoutMs: number;
+};
 
 export interface CulturalIntelligenceProvider {
   readonly id: string;

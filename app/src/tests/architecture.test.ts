@@ -4,7 +4,7 @@ import { CulturalEntitySchema } from "@/core/entities/types";
 import { AffinityEvidenceSchema } from "@/core/evidence/types";
 import { ProviderRegistry } from "@/providers/registry";
 import { QlooProvider, normalizeQlooEntities, QlooHttpClient } from "@/providers/qloo/adapter";
-import type { QlooConfig } from "@/providers/qloo/config";
+import { qlooConfigFromEnvironment, type QlooConfig } from "@/providers/qloo/config";
 
 const config: QlooConfig = {
   apiKey: "test-only-key",
@@ -177,6 +177,74 @@ test("request timeouts are surfaced without exposing headers", async () => {
   const result = await provider.searchEntities({ query: "slow" });
   assert.equal(result.ok, false);
   if (!result.ok) assert.equal(result.error.code, "TIMEOUT");
+});
+
+test("accepts a response slower than the legacy 10-second timeout when configured longer", async () => {
+  const http = new QlooHttpClient(
+    () => new Promise<Response>((resolve) => setTimeout(() => resolve(new Response(JSON.stringify({ entities: [] }), { status: 200 })), 13)),
+    25,
+    2,
+    0,
+    60,
+  );
+  const provider = new QlooProvider({ ...config, timeoutMs: 25, overallTimeoutMs: 60 }, http);
+  const result = await provider.searchEntities({ query: "slow-but-valid" });
+  assert.equal(result.ok, true);
+  assert.equal(result.diagnostics?.[0]?.attempts, 1);
+});
+
+test("enforces the overall Qloo deadline and does not retry beyond the attempt budget", async () => {
+  let requests = 0;
+  const http = new QlooHttpClient(
+    () => {
+      requests += 1;
+      return new Promise<Response>(() => undefined);
+    },
+    10,
+    2,
+    0,
+    15,
+  );
+  const provider = new QlooProvider({ ...config, timeoutMs: 10, overallTimeoutMs: 15 }, http);
+  const result = await provider.searchEntities({ query: "deadline" });
+  assert.equal(result.ok, false);
+  assert.equal(requests, 2);
+  if (!result.ok) assert.equal(result.error.code, "TIMEOUT");
+  assert.equal(result.diagnostics?.[0]?.attempts, 2);
+});
+
+test("keeps existing Qloo environment names compatible while applying safe defaults", () => {
+  const parsed = qlooConfigFromEnvironment({ QLOO_API_KEY: "test-key", QLOO_TIMEOUT_MS: "25000" });
+  assert.equal(parsed.timeoutMs, 25_000);
+  assert.equal(parsed.overallTimeoutMs, 60_000);
+  assert.equal(parsed.maxAttempts, undefined);
+  assert.throws(() => qlooConfigFromEnvironment({ QLOO_API_KEY: "test-key", QLOO_TIMEOUT_MS: "0" }), /expected number to be >0/);
+  assert.throws(() => qlooConfigFromEnvironment({ QLOO_API_KEY: "test-key", QLOO_TIMEOUT_MS: "25000", QLOO_OVERALL_TIMEOUT_MS: "10000" }), /at least the per-request timeout/);
+});
+
+test("retries transient Qloo responses and returns sanitized diagnostics", async () => {
+  let requests = 0;
+  const provider = new QlooProvider({ ...config, retryBaseDelayMs: 0 }, async () => {
+    requests += 1;
+    return requests === 1
+      ? new Response("", { status: 503 })
+      : new Response(JSON.stringify({ entities: [] }), { status: 200 });
+  });
+  const result = await provider.searchEntities({ query: "retryable" });
+  assert.equal(result.ok, true);
+  assert.equal(requests, 2);
+  assert.equal(result.diagnostics?.length, 1);
+  assert.deepEqual(result.diagnostics?.[0], {
+    providerId: "qloo",
+    operation: "entity-search",
+    outcome: "success",
+    status: 200,
+    attempts: 2,
+    retryCount: 1,
+    durationMs: result.diagnostics?.[0]?.durationMs,
+    timeoutMs: 100,
+  });
+  assert.equal("url" in (result.diagnostics?.[0] ?? {}), false);
 });
 
 test("unsupported insight target types are rejected before making a request", async () => {
