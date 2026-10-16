@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createProductionResearchEngine } from "@/agent/factory";
+import { createProductionCounterfactualEngine } from "@/agent/factory";
 import { CounterfactualRequestSchema } from "@/core/counterfactuals/contracts";
 import { CounterfactualResearchEngine } from "@/core/counterfactuals/engine";
 
@@ -13,7 +13,7 @@ export async function POST(request: Request): Promise<Response> {
   const parsed = CounterfactualRequestSchema.safeParse(input);
   if (!parsed.success) return NextResponse.json({ error: { code: "INVALID_REQUEST", message: parsed.error.issues[0]?.message ?? "Invalid counterfactual request" } }, { status: 400 });
   try {
-    const result = await new CounterfactualResearchEngine(createProductionResearchEngine()).compare(parsed.data);
+    const result = await new CounterfactualResearchEngine(createProductionCounterfactualEngine(parsed.data.includeStrategicInterpretation)).compare(parsed.data);
     return NextResponse.json(result, { status: result.status === "failed" ? 422 : 200 });
   } catch (cause) {
     const message = cause instanceof Error ? cause.message : "Counterfactual research service is unavailable";

@@ -1,10 +1,25 @@
 import { LaunchBlueprintSchema, type LaunchBlueprint } from "@/agent/contracts";
+import { StrategicInterpretationSchema, type StrategicInterpretation, type StrategicInterpretationInput } from "@/core/counterfactuals/contracts";
+import type { CounterfactualComparison } from "@/core/counterfactuals/contracts";
 
 export type BlueprintModelInput = {
   productConcept: string;
   launchLocation?: string;
   requestedOutcome?: string;
   evidence: readonly unknown[];
+};
+
+export type StrategicModelEvidence = {
+  market: "baseline" | "alternative";
+  evidence: unknown;
+};
+
+export type StrategicModelInput = {
+  productConcept: string;
+  baselineLocation?: string;
+  alternativeLocation?: string;
+  comparison: CounterfactualComparison;
+  evidence: readonly StrategicModelEvidence[];
 };
 
 export type ModelError = {
@@ -23,10 +38,19 @@ export type ModelError = {
 };
 
 export type ModelResult = { ok: true; blueprint: LaunchBlueprint } | { ok: false; error: ModelError };
+export type StrategicModelResult = { ok: true; interpretation: StrategicInterpretation | StrategicInterpretationInput } | { ok: false; error: ModelError };
 
 export interface StructuredModelProvider {
   readonly id: string;
   generateBlueprint(input: BlueprintModelInput): Promise<ModelResult>;
+  generateCounterfactualInterpretation?(input: StrategicModelInput): Promise<StrategicModelResult>;
+}
+
+export function parseStrategicModelOutput(input: unknown): StrategicModelResult {
+  const parsed = StrategicInterpretationSchema.safeParse(input);
+  return parsed.success
+    ? { ok: true, interpretation: parsed.data }
+    : { ok: false, error: { code: "MODEL_INVALID_OUTPUT", message: "Model output did not match the counterfactual strategic interpretation schema" } };
 }
 
 function formatValidationPath(path: readonly PropertyKey[]): string {

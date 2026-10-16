@@ -1,6 +1,7 @@
 import type { DecisionEngine } from "@/agent/engine";
 import type { AnalysisResult } from "@/agent/contracts";
 import type { CulturalEvidence } from "@/core/evidence/types";
+import { validateStrategicInterpretation, strategicEvidence } from "@/core/counterfactuals/strategic";
 import {
   CounterfactualRequestSchema,
   type CounterfactualComparison,
@@ -13,13 +14,13 @@ import {
 
 const emptyComparison = (): CounterfactualComparison => ({
   compared: false, baselineEvidenceCount: 0, alternativeEvidenceCount: 0, baselineGraphEdgeCount: 0, alternativeGraphEdgeCount: 0,
-  sharedEntities: [], baselineOnlyEntities: [], alternativeOnlyEntities: [], sharedRelationships: [], baselineOnlyRelationships: [], alternativeOnlyRelationships: [], changedObservedRelationships: [],
+  sharedEntities: [], baselineOnlyEntities: [], alternativeOnlyEntities: [], sharedRelationships: [], baselineOnlyRelationships: [], alternativeOnlyRelationships: [], changedObservedRelationships: [], evidenceChanges: [],
   queryContexts: { baseline: [], alternative: [] }, geographicContexts: { baseline: [], alternative: [] }, limitations: [],
 });
 
 function invalidResult(message: string, code: "INVALID_REQUEST" | "UNSUPPORTED_DIMENSION" = "INVALID_REQUEST"): CounterfactualResult {
   const empty = { productConcept: "", launchLocation: "", seedQueries: [], targetTypes: [] };
-  return { status: "failed", dimension: "launchLocation", baselineScenario: empty, alternativeScenario: empty, comparison: emptyComparison(), limitations: [], errors: [{ code, message }] };
+  return { status: "failed", dimension: "launchLocation", baselineScenario: empty, alternativeScenario: empty, comparison: emptyComparison(), limitations: [], errors: [{ code, message }], strategicInterpretationStatus: "not-requested" };
 }
 
 function entityKey(entity: CounterfactualEntityReference): string { return `${entity.providerId}\u0000${entity.category}\u0000${entity.id}`; }
@@ -91,13 +92,20 @@ function compareResearch(baseline: AnalysisResult, alternative: AnalysisResult):
     const alternative = alternativeRelationships.get(key);
     if (!alternative) {
       comparison.baselineOnlyRelationships.push(relationship);
+      comparison.evidenceChanges.push({ changeType: "removed-in-alternative", providerId: relationship.providerId, subjectEntityId: relationship.subjectEntityId, subjectEntityCategory: relationship.subjectEntityCategory, objectEntityId: relationship.objectEntityId, objectEntityCategory: relationship.objectEntityCategory, baseline: relationship.baseline });
       continue;
     }
     const shared = { ...relationship, baseline: relationship.baseline, alternative: alternative.baseline };
     comparison.sharedRelationships.push(shared);
-    if (relationship.baseline?.providerScore !== alternative.baseline?.providerScore || JSON.stringify(relationship.baseline?.queryParameters) !== JSON.stringify(alternative.baseline?.queryParameters)) comparison.changedObservedRelationships.push(shared);
+    if (relationship.baseline?.providerScore !== alternative.baseline?.providerScore || JSON.stringify(relationship.baseline?.queryParameters) !== JSON.stringify(alternative.baseline?.queryParameters)) {
+      comparison.changedObservedRelationships.push(shared);
+      comparison.evidenceChanges.push({ changeType: "observed-value-changed", providerId: shared.providerId, subjectEntityId: shared.subjectEntityId, subjectEntityCategory: shared.subjectEntityCategory, objectEntityId: shared.objectEntityId, objectEntityCategory: shared.objectEntityCategory, baseline: shared.baseline, alternative: shared.alternative });
+    }
   }
-  for (const [key, relationship] of alternativeRelationships) if (!baselineRelationships.has(key)) comparison.alternativeOnlyRelationships.push({ ...relationship, baseline: undefined, alternative: relationship.baseline });
+  for (const [key, relationship] of alternativeRelationships) if (!baselineRelationships.has(key)) {
+    comparison.alternativeOnlyRelationships.push({ ...relationship, baseline: undefined, alternative: relationship.baseline });
+    comparison.evidenceChanges.push({ changeType: "added-in-alternative", providerId: relationship.providerId, subjectEntityId: relationship.subjectEntityId, subjectEntityCategory: relationship.subjectEntityCategory, objectEntityId: relationship.objectEntityId, objectEntityCategory: relationship.objectEntityCategory, alternative: relationship.baseline });
+  }
   comparison.limitations.push("Provider affinity scores remain separate observations for separate geographic queries and are not universal market-fit scores.");
   comparison.limitations.push("Relative result-set differences do not establish demand, commercial suitability, partnership or causation.");
   comparison.limitations.push("Top-N absence is not evidence that an underlying cultural relationship is absent.");
@@ -124,6 +132,47 @@ export class CounterfactualResearchEngine {
     if (baselineResearch.errors.length) errors.push({ code: "RESEARCH_FAILURE", message: "Baseline research returned provider or validation errors" });
     if (alternativeResearch.errors.length) errors.push({ code: "RESEARCH_FAILURE", message: "Alternative research returned provider or validation errors" });
     if (!comparison.compared) errors.push({ code: "INSUFFICIENT_EVIDENCE", message: "Both locations require validated evidence before a comparison can be made" });
-    return { status: errors.length ? "partial" : "completed", dimension: "launchLocation", baselineScenario: request.baseline, alternativeScenario, baselineResearch, alternativeResearch, comparison, limitations: [...new Set(limitations)], errors };
+    const result: CounterfactualResult = {
+      status: errors.length ? "partial" : "completed", dimension: "launchLocation", baselineScenario: request.baseline, alternativeScenario, baselineResearch, alternativeResearch, comparison, limitations: [...new Set(limitations)], errors,
+      strategicInterpretationStatus: "not-requested",
+    };
+    if (!request.includeStrategicInterpretation) return result;
+    result.strategicInterpretationStatus = "unavailable";
+    const generate = this.researchEngine.getModelProvider?.();
+    if (!generate) {
+      result.strategicInterpretationError = { code: "MODEL_UNAVAILABLE", message: "Strategic interpretation was requested but no model provider is configured" };
+      result.errors.push(result.strategicInterpretationError);
+      result.status = "partial";
+      return result;
+    }
+    const modelResult = await generate({
+      productConcept: baselineResearch.scenario.productConcept,
+      baselineLocation: baselineResearch.scenario.launchLocation,
+      alternativeLocation: alternativeResearch.scenario.launchLocation,
+      comparison,
+      evidence: strategicEvidence(result),
+    });
+    if (!modelResult.ok) {
+      const code = modelResult.error.code === "MODEL_UNAVAILABLE" ? "MODEL_UNAVAILABLE" : modelResult.error.code === "MODEL_TIMEOUT" ? "MODEL_TIMEOUT" : "MODEL_FAILURE";
+      result.strategicInterpretationError = { code, message: modelResult.error.message };
+      result.errors.push(result.strategicInterpretationError);
+      result.status = "partial";
+      return result;
+    }
+    const checked = validateStrategicInterpretation(modelResult.interpretation, {
+      baselineEvidence: baselineResearch.evidence,
+      alternativeEvidence: alternativeResearch.evidence,
+      baselineLocation: baselineResearch.scenario.launchLocation,
+      alternativeLocation: alternativeResearch.scenario.launchLocation,
+    });
+    if (!checked.valid) {
+      result.strategicInterpretationError = { code: "MODEL_FAILURE", message: checked.errors.join("; ") };
+      result.errors.push(result.strategicInterpretationError);
+      result.status = "partial";
+      return result;
+    }
+    result.strategicInterpretation = checked.interpretation;
+    result.strategicInterpretationStatus = "available";
+    return result;
   }
 }

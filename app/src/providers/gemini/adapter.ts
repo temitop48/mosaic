@@ -1,5 +1,5 @@
-import { parseBlueprintModelOutput, type BlueprintModelInput, type ModelError, type ModelResult, type StructuredModelProvider } from "@/agent/model";
-import type { CulturalEvidence } from "@/core/evidence/types";
+import { parseBlueprintModelOutput, parseStrategicModelOutput, type BlueprintModelInput, type ModelError, type ModelResult, type StrategicModelInput, type StrategicModelResult, type StructuredModelProvider } from "@/agent/model";
+import { CulturalEvidenceSchema, type CulturalEvidence } from "@/core/evidence/types";
 import type { GeminiConfig } from "@/providers/gemini/config";
 
 type GeminiHttpRequest = (input: string, init: RequestInit) => Promise<Response>;
@@ -38,6 +38,37 @@ export const GEMINI_BLUEPRINT_RESPONSE_SCHEMA: GeminiJsonSchema = {
     caveats: { type: "ARRAY", items: { type: "STRING" } },
   },
   required: ["who", "where", "withWhat", "alongsideWhom", "why", "caveats"],
+};
+
+const strategicClaimSchema: GeminiJsonSchema = {
+  type: "OBJECT",
+  properties: {
+    text: { type: "STRING" },
+    classification: { type: "STRING", enum: ["verified-observation", "interpretation", "unverified-suggestion"] },
+    market: { type: "STRING", enum: ["baseline", "alternative", "comparison"] },
+    evidenceIds: { type: "ARRAY", items: { type: "STRING" } },
+    subjectEntityId: { type: "STRING" },
+    objectEntityId: { type: "STRING" },
+  },
+  required: ["text", "classification", "market", "evidenceIds"],
+};
+export const GEMINI_COUNTERFACTUAL_RESPONSE_SCHEMA: GeminiJsonSchema = {
+  type: "OBJECT",
+  properties: {
+    scenarioChange: { type: "ARRAY", items: strategicClaimSchema },
+    evidenceBackedObservations: { type: "ARRAY", items: strategicClaimSchema },
+    potentialStrategicImplications: { type: "ARRAY", items: strategicClaimSchema },
+    suggestedPositioningAdjustments: { type: "ARRAY", items: strategicClaimSchema },
+    suggestedAudienceConsiderations: { type: "ARRAY", items: strategicClaimSchema },
+    suggestedCulturalTouchpoints: { type: "ARRAY", items: strategicClaimSchema },
+    uncertaintiesAndLimitations: { type: "ARRAY", items: { type: "STRING" } },
+    supportingEvidenceReferences: { type: "ARRAY", items: { type: "OBJECT", properties: { evidenceId: { type: "STRING" }, market: { type: "STRING", enum: ["baseline", "alternative", "comparison"] } }, required: ["evidenceId", "market"] } },
+    culturalPossibilities: { type: "ARRAY", items: strategicClaimSchema },
+    positioningAndLaunchExecution: { type: "ARRAY", items: strategicClaimSchema },
+    assumptionsToValidate: { type: "ARRAY", items: strategicClaimSchema },
+    caveats: { type: "ARRAY", items: { type: "STRING" } },
+  },
+  required: ["scenarioChange", "evidenceBackedObservations", "potentialStrategicImplications", "suggestedPositioningAdjustments", "suggestedAudienceConsiderations", "suggestedCulturalTouchpoints", "uncertaintiesAndLimitations", "supportingEvidenceReferences"],
 };
 
 export type GeminiDiagnosticEvent = {
@@ -83,9 +114,9 @@ type CompactEvidence = {
 };
 
 function compactEvidence(value: unknown): CompactEvidence | undefined {
-  if (!value || typeof value !== "object") return undefined;
-  const evidence = value as Partial<CulturalEvidence>;
-  if (evidence.kind !== "affinity" || typeof evidence.id !== "string") return undefined;
+  const parsed = CulturalEvidenceSchema.safeParse(value);
+  if (!parsed.success || parsed.data.kind !== "affinity") return undefined;
+  const evidence = parsed.data;
   if (typeof evidence.subjectEntityId !== "string" || typeof evidence.objectEntityId !== "string") return undefined;
   if (!evidence.provenance || typeof evidence.provenance.providerId !== "string" || typeof evidence.provenance.sourceReference !== "string" || typeof evidence.provenance.retrievedAt !== "string") return undefined;
   const queryParameters = Object.fromEntries(Object.entries(evidence.queryParameters ?? {}).filter(([key]) =>
@@ -125,6 +156,21 @@ export function buildGeminiPrompt(input: BlueprintModelInput): string {
   ].join("\n");
 }
 
+export function buildGeminiCounterfactualPrompt(input: StrategicModelInput): string {
+  const evidence = input.evidence.flatMap((item) => {
+    const compact = compactEvidence(item.evidence);
+    return compact ? [{ market: item.market, ...compact }] : [];
+  });
+  return [
+    "Return only JSON matching the supplied counterfactual strategic interpretation schema, including scenarioChange, evidenceBackedObservations, potentialStrategicImplications, suggestedPositioningAdjustments, suggestedAudienceConsiderations, suggestedCulturalTouchpoints, uncertaintiesAndLimitations, and supportingEvidenceReferences.",
+    "Ground every explanation in the deterministic comparison and the supplied provider observations. Explain the observed evidence changes (added, removed, or changed observations) before discussing possible launch implications. The comparison is descriptive, not a demand forecast or market-fit score.",
+    "Cultural possibilities are hypotheses about what may be explored, not proof of audience demand. Positioning and launch execution must remain testable suggestions.",
+    "Do not invent cultural relationships, scores, entities, demographics, demand, commercial success, partnerships or causality. Do not treat top-N absence as cultural absence.",
+    "Each claim and supportingEvidenceReferences entry must identify market=baseline, alternative, or comparison. Evidence IDs must be copied exactly from availableEvidence and must belong to the named market. Use [] for a hypothesis without direct evidence; never create an ID. A verified-observation must also include the exact subjectEntityId and objectEntityId from a cited observation.",
+    JSON.stringify({ productConcept: input.productConcept, baselineLocation: input.baselineLocation, alternativeLocation: input.alternativeLocation, deterministicComparison: input.comparison, availableEvidence: evidence }),
+  ].join("\n");
+}
+
 export class GeminiModelProvider implements StructuredModelProvider {
   readonly id = "gemini";
   private readonly request: GeminiHttpRequest;
@@ -154,6 +200,16 @@ export class GeminiModelProvider implements StructuredModelProvider {
       return parseBlueprintModelOutput(JSON.parse((response.text ?? "").replace(/^```json\s*/u, "").replace(/\s*```$/u, "")));
     } catch {
       return { ok: false, error: { code: "MODEL_INVALID_OUTPUT", message: "Gemini returned non-JSON blueprint output" } };
+    }
+  }
+
+  async generateCounterfactualInterpretation(input: StrategicModelInput): Promise<StrategicModelResult> {
+    const response = await this.generateContent(buildGeminiCounterfactualPrompt(input), "application/json", GEMINI_COUNTERFACTUAL_RESPONSE_SCHEMA);
+    if (!response.ok) return { ok: false, error: response.error ?? { code: "MODEL_UPSTREAM_ERROR", message: "Gemini request failed" } };
+    try {
+      return parseStrategicModelOutput(JSON.parse((response.text ?? "").replace(/^```json\s*/u, "").replace(/\s*```$/u, "")));
+    } catch {
+      return { ok: false, error: { code: "MODEL_INVALID_OUTPUT", message: "Gemini returned non-JSON counterfactual interpretation output" } };
     }
   }
 

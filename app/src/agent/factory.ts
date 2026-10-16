@@ -25,3 +25,15 @@ export function createProductionResearchEngine(): DecisionEngine {
   }
   return new DecisionEngine(new QlooProvider(qlooConfig));
 }
+
+export function createProductionCounterfactualEngine(includeStrategicInterpretation = false): DecisionEngine {
+  let qlooConfig;
+  try {
+    qlooConfig = qlooConfigFromEnvironment();
+  } catch {
+    throw new Error("Qloo server configuration is unavailable");
+  }
+  if (!includeStrategicInterpretation) return new DecisionEngine(new QlooProvider(qlooConfig));
+  const geminiConfig = geminiConfigFromEnvironment();
+  return new DecisionEngine(new QlooProvider(qlooConfig), geminiConfig ? new GeminiModelProvider(geminiConfig) : undefined);
+}

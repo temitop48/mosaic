@@ -9,7 +9,7 @@ import {
   type LaunchScenarioInput,
 } from "@/agent/contracts";
 import { extractScenario, createResearchPlan, resolveEntityCandidates } from "@/agent/planning";
-import type { StructuredModelProvider } from "@/agent/model";
+import type { StrategicModelInput, StrategicModelResult, StructuredModelProvider } from "@/agent/model";
 import { LaunchBlueprintSchema } from "@/agent/contracts";
 
 type IdFactory = () => string;
@@ -61,6 +61,10 @@ export class DecisionEngine {
     this.provider = provider;
     this.model = model;
     this.idFactory = idFactory;
+  }
+
+  getModelProvider(): ((input: StrategicModelInput) => Promise<StrategicModelResult>) | undefined {
+    return this.model?.generateCounterfactualInterpretation?.bind(this.model);
   }
 
   /** Executes only provider-backed research, without requiring Gemini. */

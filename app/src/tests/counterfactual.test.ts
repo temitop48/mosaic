@@ -59,6 +59,10 @@ test("runs separate London and New York provider research while preserving uncha
   assert.equal(result.comparison.alternativeOnlyEntities.some((item) => item.id === "qloo:place:new-york-only"), true);
   assert.equal(result.comparison.sharedRelationships.length, 1);
   assert.equal(result.comparison.changedObservedRelationships.length, 1);
+  assert.equal(result.comparison.evidenceChanges.length, 3);
+  assert.equal(result.comparison.evidenceChanges.filter((item) => item.changeType === "observed-value-changed").length, 1);
+  assert.equal(result.comparison.evidenceChanges.filter((item) => item.changeType === "removed-in-alternative").length, 1);
+  assert.equal(result.comparison.evidenceChanges.filter((item) => item.changeType === "added-in-alternative").length, 1);
   assert.equal(result.comparison.sharedRelationships[0]?.baseline?.providerScore, 0.82);
   assert.equal(result.comparison.sharedRelationships[0]?.alternative?.providerScore, 0.61);
   assert.equal(result.comparison.geographicContexts.baseline[0]?.city, "London");
