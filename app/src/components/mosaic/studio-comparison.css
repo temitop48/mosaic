@@ -1,0 +1,33 @@
+/* MOSAIC Studio: Counterfactual Comparison */
+
+.mosaic-compare-strip { border: 1px solid #e8dfd2; background: #fffbf4c9; border-radius: 17px; padding: 17px 20px 13px; min-width: 0; }
+.mosaic-compare-intro { display: flex; justify-content: space-between; align-items: end; gap: 16px; }
+.mosaic-compare-eyebrow { font-size: 10px; letter-spacing: .17em; font-weight: 800; color: #235da9; }
+.mosaic-compare-intro h2 { font-family: Georgia,serif; font-size: 21px; line-height: 1.15; margin-top: 5px; }
+.mosaic-compare-intro > p { font-size: 11px; color: #77716b; line-height: 1.5; max-width: 245px; }
+.mosaic-compare-markets { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; margin-top: 12px; }
+.mosaic-compare-market { min-width: 0; border: 1px solid #e8dfd2; border-top: 3px solid; padding: 11px 13px 10px; border-radius: 9px; background: #fffdf8; }
+.mosaic-compare-market-heading { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 3px 8px; }
+.mosaic-compare-market-heading strong { font-size: 13px; }
+.mosaic-compare-market-heading span { color: #77716b; font-size: 10px; }
+.mosaic-compare-top { font-size: 10px; margin-top: 8px; color: #77716b; }
+.mosaic-compare-observation { display: flex; gap: 10px; justify-content: space-between; align-items: baseline; margin-top: 3px; }
+.mosaic-compare-observation span { min-width: 0; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mosaic-compare-observation strong { font-size: 13px; flex: none; font-family: ui-monospace,monospace; }
+.mosaic-compare-footnote { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; margin-top: 11px; font-size: 10px; color: #77716b; }
+.mosaic-compare-disclosure { font-size: 11px; color: #77716b; margin-top: 9px; border-top: 1px solid #e8dfd2; padding-top: 7px; }
+.mosaic-compare-disclosure summary { cursor: pointer; color: #2a5e99; font-weight: 700; }
+.mosaic-compare-disclosure p { margin-top: 7px; }
+.mosaic-compare-disclosure li { margin-top: 4px; }
+
+@media (max-width: 600px) {
+  .mosaic-compare-intro {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .mosaic-compare-markets {
+    grid-template-columns: 1fr;
+  }
+}

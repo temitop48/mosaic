@@ -1,0 +1,256 @@
+{
+  "evaluationMode": "LIVE",
+  "executedAt": "2026-10-20T15:16:53.297Z",
+  "baseUrl": "http://localhost:3000",
+  "endpoint": "http://localhost:3000/api/counterfactual",
+  "timeoutMs": 45000,
+  "delayMs": 2000,
+  "preflight": {
+    "reachable": true,
+    "httpStatus": 405,
+    "durationMs": 1032,
+    "note": "Endpoint responded to preflight GET; POST is required for evaluation."
+  },
+  "requestShapeValidation": {
+    "allValid": true,
+    "scenarios": [
+      {
+        "scenarioId": "L01",
+        "valid": true
+      },
+      {
+        "scenarioId": "L02",
+        "valid": true
+      },
+      {
+        "scenarioId": "L03",
+        "valid": true
+      },
+      {
+        "scenarioId": "L04",
+        "valid": true
+      },
+      {
+        "scenarioId": "L05",
+        "valid": true
+      },
+      {
+        "scenarioId": "L06",
+        "valid": true
+      },
+      {
+        "scenarioId": "L07",
+        "valid": true
+      },
+      {
+        "scenarioId": "L08",
+        "valid": true
+      }
+    ],
+    "l01L08PayloadIdentical": true
+  },
+  "scenarios": [
+    {
+      "scenarioId": "L01",
+      "productConcept": "Coffee brand",
+      "signal": "Starbucks",
+      "baselineLocation": "London",
+      "alternativeLocation": "New York",
+      "startedAt": "2026-10-20T15:16:53.298Z",
+      "durationMs": 14431,
+      "httpStatus": 200,
+      "researchOutcome": "complete",
+      "verifiedEvidenceCountsByMarket": {
+        "baseline": 20,
+        "alternative": 20
+      },
+      "validProviderAttribution": true,
+      "validationErrors": [],
+      "qlooEvidenceActuallyReturned": true
+    },
+    {
+      "scenarioId": "L02",
+      "productConcept": "Coffee brand",
+      "signal": "Blue Bottle Coffee",
+      "baselineLocation": "London",
+      "alternativeLocation": "New York",
+      "startedAt": "2026-10-20T15:17:09.731Z",
+      "durationMs": 9702,
+      "httpStatus": 200,
+      "researchOutcome": "complete",
+      "verifiedEvidenceCountsByMarket": {
+        "baseline": 20,
+        "alternative": 20
+      },
+      "validProviderAttribution": true,
+      "validationErrors": [],
+      "qlooEvidenceActuallyReturned": true
+    },
+    {
+      "scenarioId": "L03",
+      "productConcept": "Athletic lifestyle brand",
+      "signal": "Nike",
+      "baselineLocation": "London",
+      "alternativeLocation": "Tokyo",
+      "startedAt": "2026-10-20T15:17:21.436Z",
+      "durationMs": 13577,
+      "httpStatus": 200,
+      "researchOutcome": "complete",
+      "verifiedEvidenceCountsByMarket": {
+        "baseline": 20,
+        "alternative": 20
+      },
+      "validProviderAttribution": true,
+      "validationErrors": [],
+      "qlooEvidenceActuallyReturned": true
+    },
+    {
+      "scenarioId": "L04",
+      "productConcept": "Music discovery service",
+      "signal": "Spotify",
+      "baselineLocation": "Lagos",
+      "alternativeLocation": "London",
+      "startedAt": "2026-10-20T15:17:37.014Z",
+      "durationMs": 3999,
+      "httpStatus": 200,
+      "researchOutcome": "complete",
+      "verifiedEvidenceCountsByMarket": {
+        "baseline": 20,
+        "alternative": 20
+      },
+      "validProviderAttribution": true,
+      "validationErrors": [],
+      "qlooEvidenceActuallyReturned": true
+    },
+    {
+      "scenarioId": "L05",
+      "productConcept": "Entertainment platform",
+      "signal": "Netflix",
+      "baselineLocation": "New York",
+      "alternativeLocation": "Tokyo",
+      "startedAt": "2026-10-20T15:17:43.015Z",
+      "durationMs": 21020,
+      "httpStatus": 200,
+      "researchOutcome": "complete",
+      "verifiedEvidenceCountsByMarket": {
+        "baseline": 20,
+        "alternative": 20
+      },
+      "validProviderAttribution": true,
+      "validationErrors": [],
+      "qlooEvidenceActuallyReturned": true
+    },
+    {
+      "scenarioId": "L06",
+      "productConcept": "Athletic lifestyle brand",
+      "signal": "Adidas",
+      "baselineLocation": "London",
+      "alternativeLocation": "Lagos",
+      "startedAt": "2026-10-20T15:18:06.037Z",
+      "durationMs": 3951,
+      "httpStatus": 200,
+      "researchOutcome": "complete",
+      "verifiedEvidenceCountsByMarket": {
+        "baseline": 20,
+        "alternative": 20
+      },
+      "validProviderAttribution": true,
+      "validationErrors": [],
+      "qlooEvidenceActuallyReturned": true
+    },
+    {
+      "scenarioId": "L07",
+      "productConcept": "Consumer brand",
+      "signal": "Intentionally unsupported cultural signal",
+      "baselineLocation": "London",
+      "alternativeLocation": "New York",
+      "startedAt": "2026-10-20T15:18:11.989Z",
+      "durationMs": 552,
+      "httpStatus": 200,
+      "researchOutcome": "partial",
+      "verifiedEvidenceCountsByMarket": {
+        "baseline": 0,
+        "alternative": 0
+      },
+      "validProviderAttribution": false,
+      "validationErrors": [
+        "Baseline research returned provider or validation errors",
+        "Alternative research returned provider or validation errors",
+        "Both locations require validated evidence before a comparison can be made"
+      ],
+      "errorType": "application",
+      "qlooEvidenceActuallyReturned": false
+    },
+    {
+      "scenarioId": "L08",
+      "productConcept": "Coffee brand",
+      "signal": "Starbucks",
+      "baselineLocation": "London",
+      "alternativeLocation": "New York",
+      "startedAt": "2026-10-20T15:18:14.543Z",
+      "durationMs": 13463,
+      "httpStatus": 200,
+      "researchOutcome": "complete",
+      "verifiedEvidenceCountsByMarket": {
+        "baseline": 20,
+        "alternative": 20
+      },
+      "validProviderAttribution": true,
+      "validationErrors": [],
+      "qlooEvidenceActuallyReturned": true
+    }
+  ],
+  "scenariosExecuted": 8,
+  "outcomeCounts": {
+    "complete": 7,
+    "partial": 1,
+    "failed": 0
+  },
+  "repeatability": {
+    "available": true,
+    "payloadIdentical": true,
+    "baseline": {
+      "sharedProviderEntityIds": 21,
+      "uniqueInFirst": 0,
+      "uniqueInSecond": 0,
+      "union": 21,
+      "overlapRatio": 1
+    },
+    "alternative": {
+      "sharedProviderEntityIds": 21,
+      "uniqueInFirst": 0,
+      "uniqueInSecond": 0,
+      "union": 21,
+      "overlapRatio": 1
+    },
+    "limitation": "Overlap describes returned provider entity IDs only; identical rankings are not guaranteed or inferred."
+  },
+  "sensitivity": {
+    "available": true,
+    "validationOutcome": "valid",
+    "baseline": {
+      "stable": 0,
+      "changed": 0,
+      "newlyObserved": 20,
+      "notObservedInVariant": 20
+    },
+    "alternative": {
+      "stable": 0,
+      "changed": 0,
+      "newlyObserved": 20,
+      "notObservedInVariant": 20
+    },
+    "limitations": [
+      "Each comparison uses the provider's returned top-N result set; an item not observed in the variant is not evidence that the relationship is culturally absent.",
+      "Provider affinity scores are separately normalized observations. Numerical score differences are retained as changed evidence attributes only and are not treated as directly comparable magnitudes.",
+      "This comparison makes no inference about market demand, commercial suitability, sales, or launch success."
+    ]
+  },
+  "errors": [],
+  "limitations": [
+    "Live results are provider observations from the evaluation window, not accuracy, demand, or superiority measurements.",
+    "Affinity scores are provider-native observations and are not compared as cross-market quantitative rankings.",
+    "A missing top-N observation is not evidence of cultural absence.",
+    "This run uses no automatic retries and makes no Gemini requests."
+  ]
+}

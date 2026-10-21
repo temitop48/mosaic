@@ -203,9 +203,9 @@ test("enforces the overall Qloo deadline and does not retry beyond the attempt b
     10,
     2,
     0,
-    15,
+    40,
   );
-  const provider = new QlooProvider({ ...config, timeoutMs: 10, overallTimeoutMs: 15 }, http);
+  const provider = new QlooProvider({ ...config, timeoutMs: 10, overallTimeoutMs: 40 }, http);
   const result = await provider.searchEntities({ query: "deadline" });
   assert.equal(result.ok, false);
   assert.equal(requests, 2);

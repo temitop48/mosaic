@@ -1,0 +1,48 @@
+/* Studio art direction: visual-only, noninteractive woven cut-paper at page edges. */
+.mosaic-studio-fabric-layer {position:absolute; inset:0; pointer-events:none; overflow:hidden; z-index:0; isolation:isolate;}
+.mosaic-fabric {display:block; position:absolute; pointer-events:none; background-repeat:repeat; background-size:480px auto; background-blend-mode:multiply; filter:drop-shadow(0 6px 4px #48322112); opacity:.96;}
+.mosaic-fabric-cobalt {
+  left:-128px; top:510px; width:475px; height:720px;
+  background-color:#1650a0; background-image:url('/design-assets/paper-textures/paper-light.png');
+  clip-path:polygon(0 0, 27% 5%, 39% 21%, 50% 26%, 52% 37%, 75% 51%, 88% 64%, 96% 73%, 70% 89%, 37% 96%, 0 100%);
+  transform:rotate(-8deg);
+}
+.mosaic-fabric-ochre {
+  left:70px; top:770px; width:292px; height:350px;
+  background-color:#e9a81d; background-image:url('/design-assets/paper-textures/paper-light.png');
+  clip-path:polygon(13% 0, 97% 19%, 85% 58%, 98% 100%, 3% 89%, 0 40%);
+  transform:rotate(15deg);
+}
+.mosaic-fabric-forest {
+  left:210px; top:945px; width:540px; height:220px;
+  background-color:#194d37; background-image:url('/design-assets/paper-textures/paper-light.png');
+  clip-path:polygon(0 30%, 25% 0, 50% 17%, 76% 7%, 100% 34%, 100% 100%, 0 100%);
+  transform:rotate(-7deg);
+}
+.mosaic-fabric-vermilion {
+  right:16%; top:-130px; width:315px; height:300px;
+  background-color:#d94d2c; background-image:url('/design-assets/paper-textures/paper-light.png');
+  clip-path:polygon(10% 0, 94% 0, 100% 36%, 70% 64%, 37% 85%, 0 100%, 4% 36%);
+  transform:rotate(12deg);
+}
+.mosaic-fabric-right-ochre {
+  right:-130px; top:890px; width:450px; height:450px;
+  background-color:#eba916; background-image:url('/design-assets/paper-textures/paper-light.png');
+  clip-path:polygon(42% 0, 100% 10%, 100% 100%, 0 100%, 15% 49%);
+  transform:rotate(5deg);
+}
+.mosaic-sidebar-handwriting {font-family:'Comic Sans MS','Segoe Print',cursive; position:relative; z-index:1; margin-top:auto; margin-bottom:80px; padding:0 5px; color:#211e1b; font-size:17px; line-height:1.28; transform:rotate(-11deg); letter-spacing:.015em; width:max-content;}
+.mosaic-sidebar-underline {position:absolute; display:block; height:13px; width:64px; left:34px; bottom:-22px; transform:rotate(-10deg); border-bottom:3px solid #211e1b; border-radius:50%;}
+/* Give the artwork room without blocking clicks or graphic labels. */
+.mosaic-studio-fabric-layer~div {position:relative;z-index:1;}
+/* Reduce the graph's overlaid texture; woven fabric belongs primarily on the outer frame. */
+.mosaic-studio-stable .mosaic-reference-graph { background-image:linear-gradient(150deg,#fffaf8f1,#fbf7f0ee),url('/design-assets/paper-textures/paper-light.png'); background-blend-mode:normal; background-size:auto,720px auto; }
+.mosaic-studio-stable .mosaic-reference-graph::before {opacity:.25; width:105px;height:105px;left:-25px;bottom:-28px;}
+.mosaic-studio-stable .mosaic-reference-graph::after {opacity:.24; width:85px;height:85px;right:-32px;top:25px;}
+/* Hand-drawn editorial cues, decorative only. */
+.mosaic-studio-stable .mosaic-compare-strip {position:relative;}
+.mosaic-studio-stable .mosaic-compare-strip::after {content:'Same signal. Different culture.'; display:block; width:max-content; max-width:100%; margin:8px 0 0 auto; color:#2a2827; font-family:'Comic Sans MS','Segoe Print',cursive; font-size:12px; transform:rotate(-4deg); opacity:.7; pointer-events:none;}
+@media(min-width:901px) and (max-height:950px) {.mosaic-fabric-cobalt{top:440px}.mosaic-fabric-ochre{top:715px}}
+@media(max-width:1100px){.mosaic-fabric-cobalt{width:330px;left:-145px}.mosaic-fabric-ochre{left:20px;width:190px}.mosaic-fabric-forest{left:140px}.mosaic-fabric-vermilion{right:3%;width:220px}.mosaic-fabric-right-ochre{width:280px;right:-145px}}
+@media(max-width:900px){.mosaic-sidebar-handwriting{display:none}.mosaic-fabric-cobalt{left:-200px;opacity:.5}.mosaic-fabric-ochre,.mosaic-fabric-forest{opacity:.45}.mosaic-fabric-vermilion{top:-100px;right:-50px;opacity:.5}.mosaic-fabric-right-ochre{opacity:.4}}
+@media(prefers-reduced-transparency:reduce){.mosaic-fabric{opacity:.5}}

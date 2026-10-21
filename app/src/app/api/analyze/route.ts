@@ -1,30 +1,49 @@
 import { NextResponse } from "next/server";
 import { createProductionDecisionEngine } from "@/agent/factory";
 import { LaunchScenarioInputSchema } from "@/agent/contracts";
+import { createRequestProtection, protectionFailureResponse, readBoundedBody, RequestProtectionUnavailableError, type RequestProtection } from "@/lib/request-protection";
 
-const MAX_REQUEST_BYTES = 16_384;
+export const maxDuration = 180;
+
+function json(data: unknown, status: number, retryAfterSeconds?: number): Response {
+  const headers = new Headers({ "Cache-Control": "no-store" });
+  if (retryAfterSeconds !== undefined) headers.set("Retry-After", String(retryAfterSeconds));
+  return NextResponse.json(data, { status, headers });
+}
+
+let protection: RequestProtection | undefined;
+let protectionChecked = false;
+function getProtection(): RequestProtection | undefined {
+  if (!protectionChecked) {
+    protectionChecked = true;
+    protection = createRequestProtection();
+  }
+  return protection;
+}
 
 export async function POST(request: Request): Promise<Response> {
-  const contentLength = Number(request.headers.get("content-length") ?? "0");
-  if (contentLength > MAX_REQUEST_BYTES) {
-    return NextResponse.json({ error: { code: "INVALID_SCENARIO", message: "Request body is too large" } }, { status: 413 });
-  }
+  const body = await readBoundedBody(request);
+  if (!body.ok) return json({ error: { code: "INVALID_SCENARIO", message: "Request body is too large" } }, 413);
   let input: unknown;
-  try {
-    input = await request.json();
-  } catch {
-    return NextResponse.json({ error: { code: "INVALID_SCENARIO", message: "Request body must be valid JSON" } }, { status: 400 });
-  }
+  try { input = JSON.parse(body.body); } catch { return json({ error: { code: "INVALID_SCENARIO", message: "Request body must be valid JSON" } }, 400); }
   const parsed = LaunchScenarioInputSchema.safeParse(input);
-  if (!parsed.success) {
-    return NextResponse.json({ error: { code: "INVALID_SCENARIO", message: parsed.error.issues[0]?.message ?? "Invalid launch scenario" } }, { status: 400 });
-  }
+  if (!parsed.success) return json({ error: { code: "INVALID_SCENARIO", message: parsed.error.issues[0]?.message ?? "Invalid launch scenario" } }, 400);
+  let lease: { release: () => Promise<void> } | undefined;
   try {
+    const requestProtection = getProtection();
+    if (!requestProtection && process.env.REQUEST_PROTECTION_MODE !== "disabled") return json({ error: { code: "REQUEST_PROTECTION_UNAVAILABLE", message: "Request protection is temporarily unavailable." } }, 503);
+    if (requestProtection) {
+      const admission = await requestProtection.admit(request, "analyze");
+      if (!admission.ok) { const failure = protectionFailureResponse(admission); return json(failure.body, failure.status, failure.retryAfterSeconds); }
+      lease = admission.lease;
+    }
     const engine = createProductionDecisionEngine();
     const result = await engine.analyze(parsed.data);
-    return NextResponse.json(result, { status: result.status === "failed" ? 422 : 200 });
+    return json(result, result.status === "failed" ? 422 : 200);
   } catch (cause) {
-    const message = cause instanceof Error ? cause.message : "Analysis service is unavailable";
-    return NextResponse.json({ error: { code: "SERVICE_UNAVAILABLE", message } }, { status: 503 });
+    if (cause instanceof RequestProtectionUnavailableError) return json({ error: { code: "REQUEST_PROTECTION_UNAVAILABLE", message: "Request protection is temporarily unavailable." } }, 503);
+    return json({ error: { code: "SERVICE_UNAVAILABLE", message: "Analysis service is unavailable" } }, 503);
+  } finally {
+    await lease?.release();
   }
 }

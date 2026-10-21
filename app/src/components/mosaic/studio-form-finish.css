@@ -1,0 +1,88 @@
+/* MOSAIC: Final scenario form refinement */
+
+.mosaic-strategic-row {
+  grid-column: 1 / -1;
+  display: flex !important;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+  min-width: 0;
+  margin-top: 4px;
+}
+
+.mosaic-strategic-control {
+  display: inline-flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 10px !important;
+  width: auto;
+  max-width: 100%;
+  cursor: pointer;
+}
+
+.mosaic-strategic-control input[type="checkbox"] {
+  appearance: auto;
+  flex: 0 0 16px;
+  width: 16px !important;
+  height: 16px !important;
+  min-width: 16px !important;
+  margin: 0 !important;
+  accent-color: #205540;
+  cursor: pointer;
+}
+
+.mosaic-strategic-description {
+  display: inline !important;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #77716b;
+}
+
+.mosaic-strategic-description strong {
+  font-weight: 600;
+  color: #242424;
+}
+
+.mosaic-strategic-help {
+  display: inline !important;
+}
+
+/* Remove blue browser/Tailwind focus treatment on scenario controls */
+
+.mosaic-studio-edit input:focus,
+.mosaic-studio-edit select:focus,
+.mosaic-studio-edit textarea:focus,
+.mosaic-studio-edit button:focus {
+  outline: none !important;
+  box-shadow: none !important;
+  --tw-ring-shadow: 0 0 #0000 !important;
+  --tw-ring-color: transparent !important;
+  border-color: #cfc6ba;
+}
+
+/* Preserve visible keyboard focus, using Mosaic green instead of blue */
+
+.mosaic-studio-edit input:focus-visible,
+.mosaic-studio-edit select:focus-visible,
+.mosaic-studio-edit textarea:focus-visible,
+.mosaic-studio-edit button:focus-visible {
+  outline: 2px solid #205540 !important;
+  outline-offset: 2px;
+  box-shadow: none !important;
+}
+
+.mosaic-strategic-control input:checked {
+  accent-color: #205540;
+}
+
+@media (max-width: 650px) {
+  .mosaic-strategic-control {
+    align-items: flex-start !important;
+  }
+
+  .mosaic-strategic-control input[type="checkbox"] {
+    margin-top: 2px !important;
+  }
+}

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" role="img" aria-label="Decorative location symbol">
+<rect width="160" height="160" rx="80" fill="#EFE1E6"/>
+<path d="M0 10L54 0L0 62z" fill="#E5C4D0"/>
+<circle cx="80" cy="77" r="49" fill="#fffaf2" opacity=".75"/>
+<path d="M80 34C57 34 41 52 41 74c0 27 39 57 39 57s39-30 39-57c0-22-16-40-39-40Z" fill="#A34F70"/>
+<circle cx="80" cy="73" r="16" fill="#fffaf2"/>
+<path d="M54 131q26-9 52 0" stroke="#D9AE57" stroke-width="5" fill="none" stroke-linecap="round"/>
+</svg>

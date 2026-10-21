@@ -13,6 +13,7 @@
     "gemini:diagnostics": "node --experimental-strip-types --import ./test-aliases.mjs scripts/gemini-diagnostics.mjs"
   },
   "dependencies": {
+    "@upstash/redis": "^1.39.0",
     "@xyflow/react": "^12.12.0",
     "lucide-react": "^1.57.0",
     "next": "16.4.1",

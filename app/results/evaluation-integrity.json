@@ -1,0 +1,37 @@
+{
+  "evaluation": "Mosaic evidence integrity and deterministic evaluation",
+  "evaluationMode": "MOCKED",
+  "executedAt": "2026-10-20T14:39:56.919Z",
+  "command": "node --experimental-strip-types --test --test-isolation=none --import ./test-aliases.mjs src/tests/evaluation-integrity.test.ts src/tests/evaluation-reliability.test.ts src/tests/evaluation-sensitivity.test.ts",
+  "status": "passed",
+  "categories": [
+    {
+      "category": "integrity",
+      "testFile": "src/tests/evaluation-integrity.test.ts",
+      "tests": 4,
+      "status": "passed"
+    },
+    {
+      "category": "reliability",
+      "testFile": "src/tests/evaluation-reliability.test.ts",
+      "tests": 4,
+      "status": "passed"
+    },
+    {
+      "category": "sensitivity",
+      "testFile": "src/tests/evaluation-sensitivity.test.ts",
+      "tests": 3,
+      "status": "passed"
+    }
+  ],
+  "summary": {
+    "tests": 11,
+    "passed": 11,
+    "failed": 0
+  },
+  "failures": [],
+  "limitations": [
+    "Mocked fixtures only; no Qloo or Gemini requests were made.",
+    "This report evaluates contract and failure-handling behavior, not live provider accuracy or commercial outcomes."
+  ]
+}

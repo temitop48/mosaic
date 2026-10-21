@@ -1,0 +1,676 @@
+{
+  "evaluationMode": "LIVE_DIAGNOSTIC",
+  "executedAt": "2026-10-20T15:29:36.644Z",
+  "baseUrl": "http://localhost:3000",
+  "endpoint": "http://localhost:3000/api/counterfactual",
+  "timeoutMs": 45000,
+  "delayMs": 2000,
+  "preflight": {
+    "reachable": true,
+    "httpStatus": 405,
+    "durationMs": 229,
+    "note": "Endpoint responded to preflight GET; POST is required for evaluation."
+  },
+  "requestShapeValidation": {
+    "allValid": true,
+    "scenarios": [
+      {
+        "scenarioId": "D01",
+        "valid": true
+      },
+      {
+        "scenarioId": "D02",
+        "valid": true
+      },
+      {
+        "scenarioId": "D03",
+        "valid": true
+      },
+      {
+        "scenarioId": "D04",
+        "valid": true
+      }
+    ]
+  },
+  "scenarios": [
+    {
+      "scenarioId": "D01",
+      "productConcept": "Coffee brand",
+      "signal": "Starbucks",
+      "baselineLocation": "London",
+      "alternativeLocation": "New York",
+      "startedAt": "2026-10-20T15:29:36.657Z",
+      "durationMs": 16058,
+      "httpStatus": 200,
+      "researchOutcome": "complete",
+      "verifiedEvidenceCountsByMarket": {
+        "baseline": 20,
+        "alternative": 20
+      },
+      "validProviderAttribution": true,
+      "qlooEvidenceActuallyReturned": true,
+      "validationErrors": [],
+      "liveProviderVerification": "verified-by-qloo-attribution",
+      "markets": {
+        "baseline": {
+          "submittedCulturalSignal": "Starbucks",
+          "entityResolution": {
+            "status": "resolved",
+            "providerId": "qloo",
+            "displayName": "Starbucks",
+            "category": "brand",
+            "id": "B13C02E3-BA3C-4B39-85B4-ACF12FEBC892"
+          },
+          "subjectEntityIdsFromEvidence": [
+            "qloo:B13C02E3-BA3C-4B39-85B4-ACF12FEBC892"
+          ],
+          "subjectEntityCategory": "brand",
+          "destinationEntityIds": [
+            "qloo:place:023B65F4-D8AD-4158-BB21-1C0205B1A233",
+            "qloo:place:063CFC61-6293-45E8-AD6B-3966EA6E6506",
+            "qloo:place:0E1FCD07-5C87-4E5A-8D30-834DDE9DCA9E",
+            "qloo:place:0EAF0E9B-CA88-4FC5-AF37-9250344C0EC5",
+            "qloo:place:10597F71-2139-456C-BF34-A2797733BD5B",
+            "qloo:place:1BF69F27-9697-4173-AB8A-771BB5362169",
+            "qloo:place:2326F718-A66F-4CA6-B9E3-3328F6ACCFE4",
+            "qloo:place:581E74E5-AD82-461C-8B15-B3D78F2157B9",
+            "qloo:place:7D72F85D-D182-4F6C-AEBE-F1D45B058884",
+            "qloo:place:8124D8D3-B7E4-43A9-847D-C697E9F391D3",
+            "qloo:place:85631475-24FB-4F61-A331-56A11AB4C85B",
+            "qloo:place:9C05D6BD-1EDA-4D0E-92C8-8A9306552EF1",
+            "qloo:place:A1E9C851-7361-4119-927E-FB38AC679D96",
+            "qloo:place:AE34B425-E8BF-46AB-A3F1-58176F215EA6",
+            "qloo:place:B3E9A465-B43E-4651-BA0C-7EB1CB2E014D",
+            "qloo:place:B41257F3-2B47-4F3C-BB89-3DF66240B2ED",
+            "qloo:place:C8D6EF19-611F-4BA1-BB6F-9FFAFA715545",
+            "qloo:place:CBAC5DFF-E26D-4E94-81CC-DC258A8E4CFC",
+            "qloo:place:D82995CB-DEC3-40A1-AF0B-87D76E59ACCC",
+            "qloo:place:E768C5C4-C1C1-4BC2-B303-E5D98892A1EF"
+          ],
+          "returnedGeographicMetadata": [],
+          "providerAttribution": [
+            "qloo"
+          ],
+          "evidenceCount": 20,
+          "effectiveQueryMetadata": [
+            {
+              "filter.type": "urn:entity:place",
+              "signal.interests.entities": "B13C02E3-BA3C-4B39-85B4-ACF12FEBC892",
+              "feature.explainability": "true",
+              "sort_by": "affinity",
+              "take": "20",
+              "filter.location.query": "London"
+            }
+          ],
+          "missingFields": []
+        },
+        "alternative": {
+          "submittedCulturalSignal": "Starbucks",
+          "entityResolution": {
+            "status": "resolved",
+            "providerId": "qloo",
+            "displayName": "Starbucks",
+            "category": "brand",
+            "id": "B13C02E3-BA3C-4B39-85B4-ACF12FEBC892"
+          },
+          "subjectEntityIdsFromEvidence": [
+            "qloo:B13C02E3-BA3C-4B39-85B4-ACF12FEBC892"
+          ],
+          "subjectEntityCategory": "brand",
+          "destinationEntityIds": [
+            "qloo:place:1BEF27FB-A71F-4368-AC38-E5B49868B39C",
+            "qloo:place:1CB06B6D-1CB2-4D33-B6D4-9F61E281EE6B",
+            "qloo:place:46E9F06C-C598-4A8F-9F5A-1381F36C22D1",
+            "qloo:place:4B49033B-AF92-42AD-B69E-35CAB982C45D",
+            "qloo:place:537B7E31-CE72-48C7-B566-2C1F35C26BD5",
+            "qloo:place:691ACEC9-2063-4555-92E5-96DA0B4793B4",
+            "qloo:place:74335239-4EDA-4EE0-AF2B-81D8259956C0",
+            "qloo:place:748AA080-4323-4964-A86E-8CB615B89950",
+            "qloo:place:7DA48742-26DB-44B9-AEB0-DDEFF730511E",
+            "qloo:place:7F1A2F4F-627F-419D-B80B-DD1E80E38023",
+            "qloo:place:8505B59A-E2DA-4BFF-94A4-97707ECA4686",
+            "qloo:place:8F60BF7F-51A1-4661-83FB-B450A3EE350D",
+            "qloo:place:8FB6BA20-3C14-408E-B3F8-23A792A01A3C",
+            "qloo:place:AA44CFA0-3DAF-4628-AFDB-19F45AAF4666",
+            "qloo:place:AD404F43-0F29-44A9-8AAD-75111C594B7F",
+            "qloo:place:B3DE928C-57E7-4070-AD4C-8CE89547D7E6",
+            "qloo:place:C329BB37-426D-4295-A6C8-DFEC5589AE7A",
+            "qloo:place:CB453595-95CB-4DD8-BAE9-6B554B94F062",
+            "qloo:place:E92009A1-1965-49A7-BD96-168E5F19421C",
+            "qloo:place:FF8A43D9-BCD9-4B86-B5B6-6692EAFCEE1D"
+          ],
+          "returnedGeographicMetadata": [],
+          "providerAttribution": [
+            "qloo"
+          ],
+          "evidenceCount": 20,
+          "effectiveQueryMetadata": [
+            {
+              "filter.type": "urn:entity:place",
+              "signal.interests.entities": "B13C02E3-BA3C-4B39-85B4-ACF12FEBC892",
+              "feature.explainability": "true",
+              "sort_by": "affinity",
+              "take": "20",
+              "filter.location.query": "New York"
+            }
+          ],
+          "missingFields": []
+        }
+      }
+    },
+    {
+      "scenarioId": "D02",
+      "productConcept": "Coffee brand",
+      "signal": "Blue Bottle Coffee",
+      "baselineLocation": "London",
+      "alternativeLocation": "New York",
+      "startedAt": "2026-10-20T15:29:54.735Z",
+      "durationMs": 9997,
+      "httpStatus": 200,
+      "researchOutcome": "complete",
+      "verifiedEvidenceCountsByMarket": {
+        "baseline": 20,
+        "alternative": 20
+      },
+      "validProviderAttribution": true,
+      "qlooEvidenceActuallyReturned": true,
+      "validationErrors": [],
+      "liveProviderVerification": "verified-by-qloo-attribution",
+      "markets": {
+        "baseline": {
+          "submittedCulturalSignal": "Blue Bottle Coffee",
+          "entityResolution": {
+            "status": "resolved",
+            "providerId": "qloo",
+            "displayName": "Blue Bottle Coffee",
+            "category": "brand",
+            "id": "22B1BC87-CDFE-4340-86F8-8E0E6E1E6A7D"
+          },
+          "subjectEntityIdsFromEvidence": [
+            "qloo:22B1BC87-CDFE-4340-86F8-8E0E6E1E6A7D"
+          ],
+          "subjectEntityCategory": "brand",
+          "destinationEntityIds": [
+            "qloo:place:06576478-92FE-40DC-970C-4B938DEEDCC1",
+            "qloo:place:2889246E-1FDA-4DED-87E3-39370B89B6BC",
+            "qloo:place:2AA463E4-D235-4895-8304-6D5722096F2B",
+            "qloo:place:4229F077-322B-4DB8-A551-EAD494AC9F3A",
+            "qloo:place:4B680D86-53B6-4440-899D-3ED730C4D79A",
+            "qloo:place:4EB91B0F-D060-4491-A4C3-103088524BC3",
+            "qloo:place:58E16A25-F184-41B0-8571-D6549BDD3AB4",
+            "qloo:place:6CBB1591-B27E-496D-AB3C-1B011D989F5E",
+            "qloo:place:70F462C4-FBD1-41E7-81CC-49C522789464",
+            "qloo:place:7B0D8E20-9383-4C97-8ED7-C1E6061DDCF8",
+            "qloo:place:93397340-9A9F-447B-9073-8254D16110B1",
+            "qloo:place:978AFEF4-F5B6-43D8-8F0E-FFC9B744EEA3",
+            "qloo:place:A4EAB6D1-1C88-4E88-AE49-57CE4546DCF6",
+            "qloo:place:AC2CB985-BBD5-4E40-89E7-C5DB7557A5BA",
+            "qloo:place:CBAC5DFF-E26D-4E94-81CC-DC258A8E4CFC",
+            "qloo:place:D382098A-050F-48EC-AD27-AB2BDC53A97B",
+            "qloo:place:D6305B1E-9851-455B-9F86-2BD14B917322",
+            "qloo:place:E55D258A-CAE4-412A-A9E9-35EA6090CB6D",
+            "qloo:place:F06C0298-DF06-4726-AD62-D1A7E6B5E715",
+            "qloo:place:FCB32C6D-BF78-4C24-AD13-7AF7AB66BC6F"
+          ],
+          "returnedGeographicMetadata": [],
+          "providerAttribution": [
+            "qloo"
+          ],
+          "evidenceCount": 20,
+          "effectiveQueryMetadata": [
+            {
+              "filter.type": "urn:entity:place",
+              "signal.interests.entities": "22B1BC87-CDFE-4340-86F8-8E0E6E1E6A7D",
+              "feature.explainability": "true",
+              "sort_by": "affinity",
+              "take": "20",
+              "filter.location.query": "London"
+            }
+          ],
+          "missingFields": []
+        },
+        "alternative": {
+          "submittedCulturalSignal": "Blue Bottle Coffee",
+          "entityResolution": {
+            "status": "resolved",
+            "providerId": "qloo",
+            "displayName": "Blue Bottle Coffee",
+            "category": "brand",
+            "id": "22B1BC87-CDFE-4340-86F8-8E0E6E1E6A7D"
+          },
+          "subjectEntityIdsFromEvidence": [
+            "qloo:22B1BC87-CDFE-4340-86F8-8E0E6E1E6A7D"
+          ],
+          "subjectEntityCategory": "brand",
+          "destinationEntityIds": [
+            "qloo:place:109A3430-8CC4-4C4B-82BA-1D7C3BA1BC37",
+            "qloo:place:1904564B-5DA2-45A1-AD09-D038321743C0",
+            "qloo:place:1C5CDF79-5558-4579-AF1E-3FDF91D6CD15",
+            "qloo:place:1FAD5F52-7059-4DEE-982E-D4D06B44E0DD",
+            "qloo:place:3ACDDAE0-E746-4F6C-ADEC-5A055F6FDF77",
+            "qloo:place:41632B81-C0BE-4BE2-9A85-C945F6F2F3A6",
+            "qloo:place:5330BD50-A64E-4E6E-A671-9AAA207FC83F",
+            "qloo:place:73EF2AE1-6C2A-4E76-8D96-3A97ABA621C4",
+            "qloo:place:838AC0BF-6DC4-46AA-8B68-6324FC5E663E",
+            "qloo:place:95F7BD49-89BA-4046-94A8-96B95A58C736",
+            "qloo:place:96974083-9B05-4E53-B936-86E14D4872FF",
+            "qloo:place:A5B0401C-2CF7-4F87-A494-7EF85C76AC4F",
+            "qloo:place:C3DABBA5-B93D-4209-8EB0-1754BFB6A9AF",
+            "qloo:place:C772756D-A354-4923-BCD2-516AC846249B",
+            "qloo:place:C78E8019-8F7B-4EC1-8907-8365239646CD",
+            "qloo:place:E29CACBC-1A2D-48FB-8338-29131DF1D8FE",
+            "qloo:place:EA7DCEB6-E36D-44C6-AF6F-241F777A2CFB",
+            "qloo:place:ED6A9BBE-B106-40BD-98DA-A1A0391C9C79",
+            "qloo:place:F41DD719-12F0-4006-A73F-B4FD26BE1808",
+            "qloo:place:F750A817-C762-44DB-BE2D-32CBB7CD1EA7"
+          ],
+          "returnedGeographicMetadata": [],
+          "providerAttribution": [
+            "qloo"
+          ],
+          "evidenceCount": 20,
+          "effectiveQueryMetadata": [
+            {
+              "filter.type": "urn:entity:place",
+              "signal.interests.entities": "22B1BC87-CDFE-4340-86F8-8E0E6E1E6A7D",
+              "feature.explainability": "true",
+              "sort_by": "affinity",
+              "take": "20",
+              "filter.location.query": "New York"
+            }
+          ],
+          "missingFields": []
+        }
+      }
+    },
+    {
+      "scenarioId": "D03",
+      "productConcept": "Athletic lifestyle brand",
+      "signal": "Adidas",
+      "baselineLocation": "London",
+      "alternativeLocation": "Lagos",
+      "startedAt": "2026-10-20T15:30:06.735Z",
+      "durationMs": 3891,
+      "httpStatus": 200,
+      "researchOutcome": "complete",
+      "verifiedEvidenceCountsByMarket": {
+        "baseline": 20,
+        "alternative": 20
+      },
+      "validProviderAttribution": true,
+      "qlooEvidenceActuallyReturned": true,
+      "validationErrors": [],
+      "liveProviderVerification": "verified-by-qloo-attribution",
+      "markets": {
+        "baseline": {
+          "submittedCulturalSignal": "Adidas",
+          "entityResolution": {
+            "status": "resolved",
+            "providerId": "qloo",
+            "displayName": "Adidas",
+            "category": "brand",
+            "id": "FCEA7CA1-1D40-4680-B337-E74594D9BCF1"
+          },
+          "subjectEntityIdsFromEvidence": [
+            "qloo:FCEA7CA1-1D40-4680-B337-E74594D9BCF1"
+          ],
+          "subjectEntityCategory": "brand",
+          "destinationEntityIds": [
+            "qloo:place:0E1FCD07-5C87-4E5A-8D30-834DDE9DCA9E",
+            "qloo:place:0EAF0E9B-CA88-4FC5-AF37-9250344C0EC5",
+            "qloo:place:0FBA93DD-3B3A-4295-AD14-224F8DD9FCBD",
+            "qloo:place:1CAE1DE0-0670-498B-A221-CE84BF14DE97",
+            "qloo:place:30DC1BED-799D-48FF-8527-16AD7FDEACF6",
+            "qloo:place:581E74E5-AD82-461C-8B15-B3D78F2157B9",
+            "qloo:place:7D72F85D-D182-4F6C-AEBE-F1D45B058884",
+            "qloo:place:8124D8D3-B7E4-43A9-847D-C697E9F391D3",
+            "qloo:place:827DF42E-D9DC-4A26-A21D-1EF349772316",
+            "qloo:place:9C05D6BD-1EDA-4D0E-92C8-8A9306552EF1",
+            "qloo:place:A1E9C851-7361-4119-927E-FB38AC679D96",
+            "qloo:place:AE34B425-E8BF-46AB-A3F1-58176F215EA6",
+            "qloo:place:B41257F3-2B47-4F3C-BB89-3DF66240B2ED",
+            "qloo:place:C08F5678-EB0D-4946-B8E4-C8070B6CB2E8",
+            "qloo:place:C8D6EF19-611F-4BA1-BB6F-9FFAFA715545",
+            "qloo:place:DA013F2A-0AA5-46AA-AB9F-17C4DF9C7F5A",
+            "qloo:place:EA947380-ADA0-4B0F-BE10-5E08D3D7CBB1",
+            "qloo:place:EFD0B052-2182-4E3F-8C87-FB55C32DB73F",
+            "qloo:place:F42B6BB8-7C4E-4743-976F-8EDA6B2C9B5D",
+            "qloo:place:FC86DFDA-B4FC-496B-BAEA-1077D08A0258"
+          ],
+          "returnedGeographicMetadata": [],
+          "providerAttribution": [
+            "qloo"
+          ],
+          "evidenceCount": 20,
+          "effectiveQueryMetadata": [
+            {
+              "filter.type": "urn:entity:place",
+              "signal.interests.entities": "FCEA7CA1-1D40-4680-B337-E74594D9BCF1",
+              "feature.explainability": "true",
+              "sort_by": "affinity",
+              "take": "20",
+              "filter.location.query": "London"
+            }
+          ],
+          "missingFields": []
+        },
+        "alternative": {
+          "submittedCulturalSignal": "Adidas",
+          "entityResolution": {
+            "status": "resolved",
+            "providerId": "qloo",
+            "displayName": "Adidas",
+            "category": "brand",
+            "id": "FCEA7CA1-1D40-4680-B337-E74594D9BCF1"
+          },
+          "subjectEntityIdsFromEvidence": [
+            "qloo:FCEA7CA1-1D40-4680-B337-E74594D9BCF1"
+          ],
+          "subjectEntityCategory": "brand",
+          "destinationEntityIds": [
+            "qloo:place:045DB878-A0F1-45C6-B91F-671A7A7A61B9",
+            "qloo:place:279A30A8-1FA4-477D-827A-79F74A813D4A",
+            "qloo:place:30BE0E69-F77B-4235-96F1-F25053152152",
+            "qloo:place:3E677ACD-578B-4A11-AA77-E9BC0AD71C76",
+            "qloo:place:5684F6EA-A8A7-4D11-A9F8-905AD30F8962",
+            "qloo:place:5A0EDAE5-C085-493D-880A-F63F3B8440F3",
+            "qloo:place:5FE1E660-DD98-4B8A-8054-6953342DC1B4",
+            "qloo:place:63109B6A-2D17-461C-961E-542D90613951",
+            "qloo:place:68F036F5-BDA2-4BB9-8090-36C029B9E6E5",
+            "qloo:place:8D713FBF-132C-46D4-BE30-72B6E8B19BE7",
+            "qloo:place:93F0CEE4-AB72-4666-A953-D2543D1110F9",
+            "qloo:place:9838154E-610B-48B5-89AF-E35DEBF8C8C6",
+            "qloo:place:A01ABB20-678B-4A3A-AC06-0134B2C72CBE",
+            "qloo:place:A4FE34D1-79B0-49C2-AE1A-CDD54F6FA93D",
+            "qloo:place:A6AFA5CE-7721-4B4C-8B1F-C7989BD6A0EB",
+            "qloo:place:B3E79E66-5F89-42A4-94E5-FBC1093C2FD2",
+            "qloo:place:C414BD57-64D2-4F6E-9C4D-37F8A215974E",
+            "qloo:place:D1794390-0F7B-4DF8-8149-E4506D373BAD",
+            "qloo:place:E3547AC3-437A-43D5-9E59-EDFE79213879",
+            "qloo:place:E748FFDA-C2A1-432B-92B9-9B89F40A717A"
+          ],
+          "returnedGeographicMetadata": [],
+          "providerAttribution": [
+            "qloo"
+          ],
+          "evidenceCount": 20,
+          "effectiveQueryMetadata": [
+            {
+              "filter.type": "urn:entity:place",
+              "signal.interests.entities": "FCEA7CA1-1D40-4680-B337-E74594D9BCF1",
+              "feature.explainability": "true",
+              "sort_by": "affinity",
+              "take": "20",
+              "filter.location.query": "Lagos"
+            }
+          ],
+          "missingFields": []
+        }
+      }
+    },
+    {
+      "scenarioId": "D04",
+      "productConcept": "Coffee brand",
+      "signal": "Starbucks",
+      "baselineLocation": "London",
+      "alternativeLocation": "Lagos",
+      "startedAt": "2026-10-20T15:30:12.632Z",
+      "durationMs": 3996,
+      "httpStatus": 200,
+      "researchOutcome": "complete",
+      "verifiedEvidenceCountsByMarket": {
+        "baseline": 20,
+        "alternative": 20
+      },
+      "validProviderAttribution": true,
+      "qlooEvidenceActuallyReturned": true,
+      "validationErrors": [],
+      "liveProviderVerification": "verified-by-qloo-attribution",
+      "markets": {
+        "baseline": {
+          "submittedCulturalSignal": "Starbucks",
+          "entityResolution": {
+            "status": "resolved",
+            "providerId": "qloo",
+            "displayName": "Starbucks",
+            "category": "brand",
+            "id": "B13C02E3-BA3C-4B39-85B4-ACF12FEBC892"
+          },
+          "subjectEntityIdsFromEvidence": [
+            "qloo:B13C02E3-BA3C-4B39-85B4-ACF12FEBC892"
+          ],
+          "subjectEntityCategory": "brand",
+          "destinationEntityIds": [
+            "qloo:place:023B65F4-D8AD-4158-BB21-1C0205B1A233",
+            "qloo:place:063CFC61-6293-45E8-AD6B-3966EA6E6506",
+            "qloo:place:0E1FCD07-5C87-4E5A-8D30-834DDE9DCA9E",
+            "qloo:place:0EAF0E9B-CA88-4FC5-AF37-9250344C0EC5",
+            "qloo:place:10597F71-2139-456C-BF34-A2797733BD5B",
+            "qloo:place:1BF69F27-9697-4173-AB8A-771BB5362169",
+            "qloo:place:2326F718-A66F-4CA6-B9E3-3328F6ACCFE4",
+            "qloo:place:581E74E5-AD82-461C-8B15-B3D78F2157B9",
+            "qloo:place:7D72F85D-D182-4F6C-AEBE-F1D45B058884",
+            "qloo:place:8124D8D3-B7E4-43A9-847D-C697E9F391D3",
+            "qloo:place:85631475-24FB-4F61-A331-56A11AB4C85B",
+            "qloo:place:9C05D6BD-1EDA-4D0E-92C8-8A9306552EF1",
+            "qloo:place:A1E9C851-7361-4119-927E-FB38AC679D96",
+            "qloo:place:AE34B425-E8BF-46AB-A3F1-58176F215EA6",
+            "qloo:place:B3E9A465-B43E-4651-BA0C-7EB1CB2E014D",
+            "qloo:place:B41257F3-2B47-4F3C-BB89-3DF66240B2ED",
+            "qloo:place:C8D6EF19-611F-4BA1-BB6F-9FFAFA715545",
+            "qloo:place:CBAC5DFF-E26D-4E94-81CC-DC258A8E4CFC",
+            "qloo:place:D82995CB-DEC3-40A1-AF0B-87D76E59ACCC",
+            "qloo:place:E768C5C4-C1C1-4BC2-B303-E5D98892A1EF"
+          ],
+          "returnedGeographicMetadata": [],
+          "providerAttribution": [
+            "qloo"
+          ],
+          "evidenceCount": 20,
+          "effectiveQueryMetadata": [
+            {
+              "filter.type": "urn:entity:place",
+              "signal.interests.entities": "B13C02E3-BA3C-4B39-85B4-ACF12FEBC892",
+              "feature.explainability": "true",
+              "sort_by": "affinity",
+              "take": "20",
+              "filter.location.query": "London"
+            }
+          ],
+          "missingFields": []
+        },
+        "alternative": {
+          "submittedCulturalSignal": "Starbucks",
+          "entityResolution": {
+            "status": "resolved",
+            "providerId": "qloo",
+            "displayName": "Starbucks",
+            "category": "brand",
+            "id": "B13C02E3-BA3C-4B39-85B4-ACF12FEBC892"
+          },
+          "subjectEntityIdsFromEvidence": [
+            "qloo:B13C02E3-BA3C-4B39-85B4-ACF12FEBC892"
+          ],
+          "subjectEntityCategory": "brand",
+          "destinationEntityIds": [
+            "qloo:place:045DB878-A0F1-45C6-B91F-671A7A7A61B9",
+            "qloo:place:1175F3E0-D9DC-4CA7-9EA9-8FB4D86A363F",
+            "qloo:place:279A30A8-1FA4-477D-827A-79F74A813D4A",
+            "qloo:place:30BE0E69-F77B-4235-96F1-F25053152152",
+            "qloo:place:3E677ACD-578B-4A11-AA77-E9BC0AD71C76",
+            "qloo:place:4F5EF664-4393-425F-A28A-ADCAD9553B46",
+            "qloo:place:5684F6EA-A8A7-4D11-A9F8-905AD30F8962",
+            "qloo:place:5A0EDAE5-C085-493D-880A-F63F3B8440F3",
+            "qloo:place:5FE1E660-DD98-4B8A-8054-6953342DC1B4",
+            "qloo:place:634D56CC-7E4C-4AAB-95E5-5502034C4A7D",
+            "qloo:place:8C547B97-626B-44FA-B93A-816E94C35D87",
+            "qloo:place:8D713FBF-132C-46D4-BE30-72B6E8B19BE7",
+            "qloo:place:93F0CEE4-AB72-4666-A953-D2543D1110F9",
+            "qloo:place:A01ABB20-678B-4A3A-AC06-0134B2C72CBE",
+            "qloo:place:A6AFA5CE-7721-4B4C-8B1F-C7989BD6A0EB",
+            "qloo:place:B3E79E66-5F89-42A4-94E5-FBC1093C2FD2",
+            "qloo:place:C414BD57-64D2-4F6E-9C4D-37F8A215974E",
+            "qloo:place:D1794390-0F7B-4DF8-8149-E4506D373BAD",
+            "qloo:place:E3547AC3-437A-43D5-9E59-EDFE79213879",
+            "qloo:place:F122050B-FFD4-4624-A207-FB03EC4C4CFA"
+          ],
+          "returnedGeographicMetadata": [],
+          "providerAttribution": [
+            "qloo"
+          ],
+          "evidenceCount": 20,
+          "effectiveQueryMetadata": [
+            {
+              "filter.type": "urn:entity:place",
+              "signal.interests.entities": "B13C02E3-BA3C-4B39-85B4-ACF12FEBC892",
+              "feature.explainability": "true",
+              "sort_by": "affinity",
+              "take": "20",
+              "filter.location.query": "Lagos"
+            }
+          ],
+          "missingFields": []
+        }
+      }
+    }
+  ],
+  "scenariosExecuted": 4,
+  "outcomeCounts": {
+    "complete": 4,
+    "partial": 0,
+    "failed": 0
+  },
+  "comparisons": [
+    {
+      "pair": {
+        "firstScenarioId": "D01",
+        "secondScenarioId": "D02",
+        "purpose": "same-city-sensitivity"
+      },
+      "comparable": true,
+      "baseline": {
+        "market": "baseline",
+        "city": "London",
+        "exactRelationshipOverlap": {
+          "uniqueInFirst": 20,
+          "uniqueInSecond": 20,
+          "sharedCount": 0,
+          "unionCount": 40,
+          "jaccardRatio": 0,
+          "sharedIds": []
+        },
+        "destinationOverlap": {
+          "uniqueInFirst": 20,
+          "uniqueInSecond": 20,
+          "sharedCount": 1,
+          "unionCount": 39,
+          "jaccardRatio": 0.02564102564102564,
+          "sharedIds": [
+            "qloo:place:CBAC5DFF-E26D-4E94-81CC-DC258A8E4CFC"
+          ]
+        }
+      },
+      "alternative": {
+        "market": "alternative",
+        "city": "New York",
+        "exactRelationshipOverlap": {
+          "uniqueInFirst": 20,
+          "uniqueInSecond": 20,
+          "sharedCount": 0,
+          "unionCount": 40,
+          "jaccardRatio": 0,
+          "sharedIds": []
+        },
+        "destinationOverlap": {
+          "uniqueInFirst": 20,
+          "uniqueInSecond": 20,
+          "sharedCount": 0,
+          "unionCount": 40,
+          "jaccardRatio": 0,
+          "sharedIds": []
+        }
+      }
+    },
+    {
+      "pair": {
+        "firstScenarioId": "D03",
+        "secondScenarioId": "D04",
+        "purpose": "lagos-destination-overlap"
+      },
+      "comparable": true,
+      "baseline": {
+        "market": "baseline",
+        "city": "London",
+        "exactRelationshipOverlap": {
+          "uniqueInFirst": 20,
+          "uniqueInSecond": 20,
+          "sharedCount": 0,
+          "unionCount": 40,
+          "jaccardRatio": 0,
+          "sharedIds": []
+        },
+        "destinationOverlap": {
+          "uniqueInFirst": 20,
+          "uniqueInSecond": 20,
+          "sharedCount": 10,
+          "unionCount": 30,
+          "jaccardRatio": 0.3333333333333333,
+          "sharedIds": [
+            "qloo:place:0E1FCD07-5C87-4E5A-8D30-834DDE9DCA9E",
+            "qloo:place:0EAF0E9B-CA88-4FC5-AF37-9250344C0EC5",
+            "qloo:place:581E74E5-AD82-461C-8B15-B3D78F2157B9",
+            "qloo:place:7D72F85D-D182-4F6C-AEBE-F1D45B058884",
+            "qloo:place:8124D8D3-B7E4-43A9-847D-C697E9F391D3",
+            "qloo:place:9C05D6BD-1EDA-4D0E-92C8-8A9306552EF1",
+            "qloo:place:A1E9C851-7361-4119-927E-FB38AC679D96",
+            "qloo:place:AE34B425-E8BF-46AB-A3F1-58176F215EA6",
+            "qloo:place:B41257F3-2B47-4F3C-BB89-3DF66240B2ED",
+            "qloo:place:C8D6EF19-611F-4BA1-BB6F-9FFAFA715545"
+          ]
+        }
+      },
+      "alternative": {
+        "market": "alternative",
+        "city": "Lagos",
+        "exactRelationshipOverlap": {
+          "uniqueInFirst": 20,
+          "uniqueInSecond": 20,
+          "sharedCount": 0,
+          "unionCount": 40,
+          "jaccardRatio": 0,
+          "sharedIds": []
+        },
+        "destinationOverlap": {
+          "uniqueInFirst": 20,
+          "uniqueInSecond": 20,
+          "sharedCount": 15,
+          "unionCount": 25,
+          "jaccardRatio": 0.6,
+          "sharedIds": [
+            "qloo:place:045DB878-A0F1-45C6-B91F-671A7A7A61B9",
+            "qloo:place:279A30A8-1FA4-477D-827A-79F74A813D4A",
+            "qloo:place:30BE0E69-F77B-4235-96F1-F25053152152",
+            "qloo:place:3E677ACD-578B-4A11-AA77-E9BC0AD71C76",
+            "qloo:place:5684F6EA-A8A7-4D11-A9F8-905AD30F8962",
+            "qloo:place:5A0EDAE5-C085-493D-880A-F63F3B8440F3",
+            "qloo:place:5FE1E660-DD98-4B8A-8054-6953342DC1B4",
+            "qloo:place:8D713FBF-132C-46D4-BE30-72B6E8B19BE7",
+            "qloo:place:93F0CEE4-AB72-4666-A953-D2543D1110F9",
+            "qloo:place:A01ABB20-678B-4A3A-AC06-0134B2C72CBE",
+            "qloo:place:A6AFA5CE-7721-4B4C-8B1F-C7989BD6A0EB",
+            "qloo:place:B3E79E66-5F89-42A4-94E5-FBC1093C2FD2",
+            "qloo:place:C414BD57-64D2-4F6E-9C4D-37F8A215974E",
+            "qloo:place:D1794390-0F7B-4DF8-8149-E4506D373BAD",
+            "qloo:place:E3547AC3-437A-43D5-9E59-EDFE79213879"
+          ]
+        }
+      }
+    }
+  ],
+  "errors": [],
+  "limitations": [
+    "The endpoint response does not expose raw Qloo HTTP requests or cache headers.",
+    "Provider attribution verifies returned Qloo evidence, not the absence of upstream provider caching.",
+    "Returned geographic metadata is reported only when present in validated evidence."
+  ]
+}

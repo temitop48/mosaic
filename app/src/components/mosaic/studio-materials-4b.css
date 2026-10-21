@@ -1,0 +1,119 @@
+/* MOSAIC Phase 6E / Pass 4B: paper and cut-textile materials.
+   Decoration only. No graph geometry, forms, evidence, or interaction changes. */
+.mosaic-studio-stable {
+  isolation: isolate;
+  position: relative;
+}
+
+/* Repeated, low-contrast paper fibre across the editorial field. */
+.mosaic-studio-stable::before {
+  content: "";
+  position: absolute;
+  inset: -16px -12px 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image: url('/design-assets/paper-textures/paper-light.png');
+  background-size: 560px auto;
+  background-repeat: repeat;
+  opacity: .20;
+  border-radius: 24px;
+}
+
+/* The headline and signal live on the same editorial surface. */
+.mosaic-studio-stable .mosaic-studio-heading {
+  position: relative;
+  isolation: isolate;
+}
+.mosaic-studio-stable .mosaic-signal-identity {
+  position: relative;
+  isolation: isolate;
+}
+.mosaic-studio-stable .mosaic-signal-identity::before {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: -9px -14px;
+  z-index: -1;
+  background: linear-gradient(128deg, #fffaf48f, #f7eddf4f);
+  border-radius: 15px;
+  transform: rotate(-1.5deg);
+}
+
+/* Anchored textile cutouts: never cover any evidence or controls. */
+.mosaic-studio-stable .mosaic-reference-graph {
+  position: relative;
+  isolation: isolate;
+  background-color: #fbf8f1;
+  background-image: linear-gradient(140deg, #fffcf4ed, #faf2e7e7), url('/design-assets/paper-textures/paper-light.png');
+  background-size: auto, 560px auto;
+  background-repeat: no-repeat, repeat;
+  overflow: hidden;
+}
+.mosaic-studio-stable .mosaic-reference-graph::before,
+.mosaic-studio-stable .mosaic-reference-graph::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  z-index: 0;
+  background-repeat: no-repeat;
+  background-size: contain;
+}
+.mosaic-studio-stable .mosaic-reference-graph::before {
+  width: 118px;
+  height: 118px;
+  left: -21px;
+  bottom: -20px;
+  clip-path: polygon(0 0, 100% 100%, 0 100%);
+  background-image: url('/design-assets/decorative-shapes/cobalt-quarter.png');
+  opacity: .52;
+}
+.mosaic-studio-stable .mosaic-reference-graph::after {
+  width: 88px;
+  height: 88px;
+  right: -25px;
+  top: 95px;
+  background-image: url('/design-assets/decorative-shapes/vermilion-quarter.png');
+  opacity: .48;
+}
+.mosaic-studio-stable .mosaic-reference-graph > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Recommendation rail and compact comparison are paper pieces, not separate apps. */
+.mosaic-studio-stable .mosaic-studio-right-column {
+  background-color: #fffbf5;
+  background-image: linear-gradient(165deg, #fffdf7f0, #fff8f1dc), url('/design-assets/paper-textures/paper-light.png');
+  background-size: auto, 560px auto;
+  border-color: #e8d9c7;
+  box-shadow: 0 13px 38px #4937220b, 0 1px 0 #fffdf8 inset;
+}
+.mosaic-studio-stable .mosaic-recs-row {
+  position: relative;
+  border-radius: 9px;
+}
+.mosaic-studio-stable .mosaic-recs-thumb {
+  border-color: #dfd1bc;
+  box-shadow: 2px 3px 0 #e9dcc8a6;
+}
+.mosaic-studio-stable .mosaic-recs-context {
+  border: 1px solid #d3dfeb;
+  box-shadow: 3px 4px 0 #e3e8eb77;
+}
+.mosaic-studio-stable .mosaic-compare-strip {
+  background-color: #fffbf4;
+  background-image: linear-gradient(130deg, #fffdf6e6, #fff8f0e0), url('/design-assets/paper-textures/paper-light.png');
+  background-size: auto, 560px auto;
+  border-color: #e8d9c7;
+  box-shadow: 0 7px 25px #49372209;
+}
+
+@media (max-width: 900px) {
+  .mosaic-studio-stable .mosaic-reference-graph::before { width: 110px; height: 110px; }
+  .mosaic-studio-stable .mosaic-reference-graph::after { width: 86px; height: 86px; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .mosaic-studio-stable::before { opacity: .08; }
+  .mosaic-studio-stable .mosaic-reference-graph::before,
+  .mosaic-studio-stable .mosaic-reference-graph::after { opacity: .3; }
+}
