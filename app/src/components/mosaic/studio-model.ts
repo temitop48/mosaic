@@ -1,5 +1,6 @@
 import type { CounterfactualResult } from "@/core/counterfactuals/contracts";
 import type { CulturalEvidence } from "@/core/evidence/types";
+import type { DecisionSensitivityRelationship, DecisionSensitivityResult } from "@/core/sensitivity/contracts";
 
 export type StudioMarket = "baseline" | "alternative";
 export const RESEARCH_TARGET_PLACE = "urn:entity:place" as const;
@@ -101,6 +102,54 @@ export function providerExplanationText(value: Record<string, unknown> | undefin
     if (typeof candidate === "string" && candidate.trim().length > 0) return candidate.trim();
   }
   return undefined;
+}
+
+type SensitivityAffinityEvidence = Extract<CulturalEvidence, { kind: "affinity" }>;
+
+export function sensitivityAffinityEvidence(result: CounterfactualResult, evidenceId: string | undefined): SensitivityAffinityEvidence | undefined {
+  if (!evidenceId) return undefined;
+  const evidence = [...(result.baselineResearch?.evidence ?? []), ...(result.alternativeResearch?.evidence ?? [])].find((item) => item.id === evidenceId);
+  return evidence?.kind === "affinity" ? evidence : undefined;
+}
+
+function sensitivityResolvedEntityName(result: CounterfactualResult, entityId: string): string | undefined {
+  return [...(result.baselineResearch?.resolutions ?? []), ...(result.alternativeResearch?.resolutions ?? [])].find((resolution) => resolution.entity?.id === entityId)?.entity?.name;
+}
+
+function sensitivityRelationshipLine(item: DecisionSensitivityRelationship, evidence: SensitivityAffinityEvidence | undefined, result: CounterfactualResult): string {
+  const subjectName = evidence?.subjectEntityName ?? sensitivityResolvedEntityName(result, item.subjectEntityId) ?? `${item.subjectEntityCategory} ${item.subjectEntityId}`;
+  const objectName = evidence?.objectEntityName ?? `${item.objectEntityCategory} ${item.objectEntityId}`;
+  return `${subjectName} → ${objectName}`;
+}
+
+export type SensitivityRelationshipDisplay = { original?: string; modified?: string };
+
+export function sensitivityRelationshipDisplay(item: DecisionSensitivityRelationship, originalResult: CounterfactualResult, variantResult: CounterfactualResult): SensitivityRelationshipDisplay {
+  const originalEvidence = sensitivityAffinityEvidence(originalResult, item.originalEvidence?.evidenceId);
+  const variantEvidence = sensitivityAffinityEvidence(variantResult, item.variantEvidence?.evidenceId);
+  return {
+    original: item.originalEvidence ? sensitivityRelationshipLine(item, originalEvidence, originalResult) : undefined,
+    modified: item.variantEvidence ? sensitivityRelationshipLine(item, variantEvidence, variantResult) : undefined,
+  };
+}
+
+export type SensitivityMarketSummary = {
+  sharedObservedTargetEntities: number;
+  originalOnlyObservedTargets: number;
+  modifiedOnlyObservedTargets: number;
+  exactRelationshipChanges: number;
+  totalRelationshipChanges: number;
+};
+
+export function sensitivityMarketSummary(result: DecisionSensitivityResult, market: "baseline" | "alternative"): SensitivityMarketSummary {
+  const comparison = result.comparison[market];
+  return {
+    sharedObservedTargetEntities: comparison.destinationContinuity.shared.length,
+    originalOnlyObservedTargets: comparison.destinationContinuity.originalOnly.length,
+    modifiedOnlyObservedTargets: comparison.destinationContinuity.variantOnly.length,
+    exactRelationshipChanges: comparison.changed.length,
+    totalRelationshipChanges: comparison.changed.length + comparison.notObservedInVariant.length + comparison.newInVariant.length,
+  };
 }
 
 type ObservedTarget = {
