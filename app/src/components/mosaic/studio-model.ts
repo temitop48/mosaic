@@ -10,6 +10,8 @@ export type StudioScenarioInput = {
   includeStrategicInterpretation: boolean;
 };
 
+export const CULTURAL_CONNECTIONS_LABEL = "Top Cultural Connections";
+
 export function createCounterfactualRequest(input: StudioScenarioInput) {
   return {
     baseline: {
@@ -35,6 +37,47 @@ export function evidenceForMarket(result: CounterfactualResult, market: StudioMa
 
 export function locationForMarket(result: CounterfactualResult, market: StudioMarket): string {
   return market === "baseline" ? (result.baselineScenario.launchLocation ?? "Baseline") : (result.alternativeScenario.launchLocation ?? "Alternative");
+}
+
+function researchForMarket(result: CounterfactualResult, market: StudioMarket) {
+  return market === "baseline" ? result.baselineResearch : result.alternativeResearch;
+}
+
+export function targetTypeLabel(targetType: string | undefined): string {
+  return targetType?.startsWith("urn:entity:") ? targetType.slice("urn:entity:".length) : targetType ?? "unavailable";
+}
+
+export function researchScopeForMarket(result: CounterfactualResult, market: StudioMarket): {
+  signal: string;
+  city: string;
+  targetType: string;
+  provider: string;
+  ordering: string;
+} {
+  const research = researchForMarket(result, market);
+  const evidence = evidenceForMarket(result, market);
+  const firstAffinity = evidence.find((item) => item.kind === "affinity");
+  const signal = research?.resolutions.find((resolution) => resolution.entity)?.entity?.name
+    ?? (firstAffinity?.kind === "affinity" ? firstAffinity.subjectEntityName : undefined)
+    ?? "Cultural signal";
+  const targetType = firstAffinity?.kind === "affinity"
+    ? firstAffinity.queryParameters["filter.type"]
+    : research?.plan?.targetTypes[0];
+  const provider = firstAffinity?.provenance.providerId ?? "unavailable";
+  const ordering = firstAffinity?.kind === "affinity" && firstAffinity.queryParameters.sort_by
+    ? firstAffinity.queryParameters.sort_by
+    : "provider order";
+  return { signal, city: locationForMarket(result, market), targetType: targetTypeLabel(targetType), provider, ordering };
+}
+
+export function providerExplanationText(value: Record<string, unknown> | undefined): string | undefined {
+  if (!value) return undefined;
+  const textKeys = ["text", "description", "explanation", "reason", "summary"];
+  for (const key of textKeys) {
+    const candidate = value[key];
+    if (typeof candidate === "string" && candidate.trim().length > 0) return candidate.trim();
+  }
+  return undefined;
 }
 
 export type StudioGraphNode = {
