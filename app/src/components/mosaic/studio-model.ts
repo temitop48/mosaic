@@ -103,6 +103,75 @@ export function providerExplanationText(value: Record<string, unknown> | undefin
   return undefined;
 }
 
+type ObservedTarget = {
+  providerId: string;
+  objectEntityCategory: string;
+  objectEntityId: string;
+  providerScore?: number;
+  providerScoreScale?: string;
+  providerScoreLabel?: string;
+};
+
+export type ObservedTargetComparison = {
+  available: boolean;
+  complete: boolean;
+  sharedCount?: number;
+  baselineOnlyCount?: number;
+  alternativeOnlyCount?: number;
+  sameTargetEntities: boolean;
+  exactObservedEquality: boolean;
+};
+
+function observedTargetsForMarket(result: CounterfactualResult, market: StudioMarket): ObservedTarget[] | undefined {
+  const identities = new Set<string>();
+  const targets: ObservedTarget[] = [];
+  for (const item of evidenceForMarket(result, market)) {
+    if (item.kind !== "affinity") continue;
+    const providerId = item.provenance?.providerId;
+    const objectEntityCategory = item.objectEntityCategory;
+    const objectEntityId = item.objectEntityId;
+    if (!providerId || !objectEntityCategory || !objectEntityId) return undefined;
+    const key = `${providerId}\u0000${objectEntityCategory}\u0000${objectEntityId}`;
+    if (identities.has(key)) continue;
+    identities.add(key);
+    targets.push({ providerId, objectEntityCategory, objectEntityId, providerScore: item.providerScore, providerScoreScale: item.providerScoreScale, providerScoreLabel: item.providerScoreLabel });
+  }
+  return targets;
+}
+
+function targetKey(target: ObservedTarget): string {
+  return `${target.providerId}\u0000${target.objectEntityCategory}\u0000${target.objectEntityId}`;
+}
+
+function sameObservedTarget(left: ObservedTarget, right: ObservedTarget): boolean {
+  return targetKey(left) === targetKey(right)
+    && left.providerScore === right.providerScore
+    && left.providerScoreScale === right.providerScoreScale
+    && left.providerScoreLabel === right.providerScoreLabel;
+}
+
+export function observedTargetComparison(result: CounterfactualResult): ObservedTargetComparison {
+  const baseline = observedTargetsForMarket(result, "baseline");
+  const alternative = observedTargetsForMarket(result, "alternative");
+  if (!baseline || !alternative) return { available: false, complete: false, sameTargetEntities: false, exactObservedEquality: false };
+
+  const baselineKeys = new Set(baseline.map(targetKey));
+  const alternativeKeys = new Set(alternative.map(targetKey));
+  const sharedCount = [...baselineKeys].filter((key) => alternativeKeys.has(key)).length;
+  const baselineOnlyCount = [...baselineKeys].filter((key) => !alternativeKeys.has(key)).length;
+  const alternativeOnlyCount = [...alternativeKeys].filter((key) => !baselineKeys.has(key)).length;
+  const sameTargetEntities = baseline.length === alternative.length && baseline.every((target, index) => targetKey(target) === targetKey(alternative[index]!));
+  const complete = result.status === "completed"
+    && result.baselineResearch?.status === "completed"
+    && result.alternativeResearch?.status === "completed"
+    && baseline.length > 0
+    && alternative.length > 0;
+  const exactObservedEquality = complete
+    && sameTargetEntities
+    && baseline.every((target, index) => sameObservedTarget(target, alternative[index]!));
+  return { available: true, complete, sharedCount, baselineOnlyCount, alternativeOnlyCount, sameTargetEntities, exactObservedEquality };
+}
+
 export type StudioGraphNode = {
   id: string;
   label: string;

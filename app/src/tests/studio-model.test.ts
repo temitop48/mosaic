@@ -3,7 +3,7 @@ import test from "node:test";
 import type { CounterfactualResult } from "@/core/counterfactuals/contracts";
 import type { CulturalEvidence } from "@/core/evidence/types";
 import { mapCounterfactualResponse } from "@/components/mosaic/studio-model";
-import { buildStudioGraph, calculateStudioGraphViewport, createCounterfactualRequest, evidenceForMarket, studioGraphBounds, studioGraphForDisplay, studioGraphNodeFootprint } from "@/components/mosaic/studio-model";
+import { buildStudioGraph, calculateStudioGraphViewport, createCounterfactualRequest, evidenceForMarket, observedTargetComparison, studioGraphBounds, studioGraphForDisplay, studioGraphNodeFootprint } from "@/components/mosaic/studio-model";
 
 const source = { id: "qloo:brand:signal", providerId: "qloo", name: "Signal Brand", category: "brand" as const, sourceReference: "qloo:entity:signal", metadata: {} };
 function evidence(market: string, target: string, score: number): CulturalEvidence {
@@ -19,6 +19,17 @@ function result(): CounterfactualResult {
     alternativeResearch: { analysisId: "a2", status: "partial", scenario: { productConcept: "Coffee", launchLocation: "New York", seedQueries: ["Signal Brand"], targetTypes: ["urn:entity:place"] }, resolutions: [{ query: "Signal Brand", status: "resolved", entity: source, candidates: [source] }], evidence: alternativeEvidence, graph: { nodes: [], edges: [] }, limitations: ["Top-N absence is not cultural absence"], errors: [{ code: "EMPTY_RESULTS", message: "Some results were empty" }], diagnostics: [] },
     comparison: { compared: true, baselineEvidenceCount: 1, alternativeEvidenceCount: 1, baselineGraphEdgeCount: 1, alternativeGraphEdgeCount: 1, sharedEntities: [], baselineOnlyEntities: [], alternativeOnlyEntities: [], sharedRelationships: [], baselineOnlyRelationships: [], alternativeOnlyRelationships: [], changedObservedRelationships: [], evidenceChanges: [], queryContexts: { baseline: [], alternative: [] }, geographicContexts: { baseline: [{ city: "London" }], alternative: [{ city: "New York" }] }, limitations: ["Scores are provider observations"] }, limitations: [], errors: [], strategicInterpretationStatus: "not-requested",
   };
+}
+
+function completeResult(baselineEvidence: CulturalEvidence[], alternativeEvidence: CulturalEvidence[]): CounterfactualResult {
+  const current = result();
+  current.status = "completed";
+  current.baselineResearch!.status = "completed";
+  current.alternativeResearch!.status = "completed";
+  current.baselineResearch!.evidence = baselineEvidence;
+  current.alternativeResearch = { ...current.alternativeResearch!, evidence: alternativeEvidence, errors: [] };
+  current.errors = [];
+  return current;
 }
 
 test("builds a valid counterfactual submission without a provider call", () => {
@@ -68,6 +79,66 @@ test("switching market presentation reuses mapped evidence without a new request
   assert.notEqual(baselineGraph.edges[0]?.evidenceId, alternativeGraph.edges[0]?.evidenceId);
   assert.equal(evidenceForMarket(current, "baseline").length, 1);
   assert.equal(evidenceForMarket(current, "alternative").length, 1);
+});
+
+test("separates observed target counts from the shared cultural signal", () => {
+  const current = completeResult([evidence("London", "Shared venue", 0.8)], [evidence("New York", "Shared venue", 0.8)]);
+  const comparison = observedTargetComparison(current);
+  assert.deepEqual(comparison, { available: true, complete: true, sharedCount: 1, baselineOnlyCount: 0, alternativeOnlyCount: 0, sameTargetEntities: true, exactObservedEquality: true });
+});
+
+test("does not declare exact equality when shared targets have different scores", () => {
+  const comparison = observedTargetComparison(completeResult([evidence("London", "Shared venue", 0.8)], [evidence("New York", "Shared venue", 0.7)]));
+  assert.equal(comparison.sameTargetEntities, true);
+  assert.equal(comparison.exactObservedEquality, false);
+});
+
+test("does not declare exact equality when shared targets have different ordering", () => {
+  const baseline = [evidence("London", "First", 0.8), evidence("London", "Second", 0.7)];
+  const alternative = [evidence("New York", "Second", 0.7), evidence("New York", "First", 0.8)];
+  const comparison = observedTargetComparison(completeResult(baseline, alternative));
+  assert.equal(comparison.sharedCount, 2);
+  assert.equal(comparison.sameTargetEntities, false);
+  assert.equal(comparison.exactObservedEquality, false);
+});
+
+test("reports target-only counts for different entity sets", () => {
+  const comparison = observedTargetComparison(completeResult([evidence("London", "Shared", 0.8), evidence("London", "London only", 0.7)], [evidence("New York", "Shared", 0.8), evidence("New York", "New York only", 0.7)]));
+  assert.deepEqual([comparison.sharedCount, comparison.baselineOnlyCount, comparison.alternativeOnlyCount], [1, 1, 1]);
+  assert.equal(comparison.exactObservedEquality, false);
+});
+
+test("deduplicates repeated target observations without mutating evidence", () => {
+  const first = evidence("London", "Shared", 0.8);
+  const duplicate = { ...first, id: "duplicate-observation" };
+  const current = completeResult([first, duplicate], [{ ...first, id: "alternative-observation", geographicContext: { city: "New York" } }]);
+  const before = JSON.stringify(current.baselineResearch?.evidence);
+  const comparison = observedTargetComparison(current);
+  assert.equal(comparison.sharedCount, 1);
+  assert.equal(comparison.baselineOnlyCount, 0);
+  assert.equal(JSON.stringify(current.baselineResearch?.evidence), before);
+});
+
+test("does not invent overlap when provider identity is missing", () => {
+  const current = completeResult([evidence("London", "Shared", 0.8)], [evidence("New York", "Shared", 0.8)]);
+  const invalid = current.baselineResearch!.evidence[0] as Extract<CulturalEvidence, { kind: "affinity" }>;
+  (invalid.provenance as { providerId: string }).providerId = "";
+  const comparison = observedTargetComparison(current);
+  assert.equal(comparison.available, false);
+  assert.equal(comparison.sharedCount, undefined);
+});
+
+test("qualifies equality when research is partial and remains market-isolated", () => {
+  const current = completeResult([evidence("London", "Shared", 0.8)], [evidence("New York", "Shared", 0.8)]);
+  current.status = "partial";
+  current.alternativeResearch!.status = "partial";
+  const first = observedTargetComparison(current);
+  const second = observedTargetComparison(current);
+  assert.equal(first.complete, false);
+  assert.equal(first.exactObservedEquality, false);
+  assert.deepEqual(first, second);
+  assert.equal(evidenceForMarket(current, "baseline")[0]?.geographicContext?.city, "London");
+  assert.equal(evidenceForMarket(current, "alternative")[0]?.geographicContext?.city, "New York");
 });
 
 test("keeps the initial radial graph stable and non-overlapping", () => {

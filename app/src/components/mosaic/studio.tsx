@@ -21,7 +21,7 @@ import type { CounterfactualResult, StrategicClaim } from "@/core/counterfactual
 import type { DecisionSensitivityResult } from "@/core/sensitivity/contracts";
 import type { CulturalEvidence } from "@/core/evidence/types";
 import { Button, Card, EmptyState, EvidenceBadge, ErrorState, ProvenanceIndicator, SectionHeading, SelectControl, StatusBadge, TextField, usePresentationView, useStrategicInterpretationPreference } from "./primitives";
-import { createCounterfactualRequest, CULTURAL_CONNECTIONS_LABEL, evidenceForMarket, locationForMarket, mapCounterfactualResponse, normalizeResearchTarget, providerExplanationText, RESEARCH_TARGET_OPTIONS, researchScopeForMarket, strategicReferences, targetTypeLabel, type StudioMarket, type StudioScenarioInput } from "./studio-model";
+import { createCounterfactualRequest, CULTURAL_CONNECTIONS_LABEL, evidenceForMarket, locationForMarket, mapCounterfactualResponse, normalizeResearchTarget, observedTargetComparison, providerExplanationText, RESEARCH_TARGET_OPTIONS, researchScopeForMarket, strategicReferences, targetTypeLabel, type StudioMarket, type StudioScenarioInput } from "./studio-model";
 import { buildSensitivityResult, SensitivityPanel, validateSensitivityRequest } from "./sensitivity-panel";
 
 const cx = (...values: Array<string | false | undefined>) => values.filter(Boolean).join(" ");
@@ -93,6 +93,7 @@ function Recommendations({ result, market, selectedEvidenceId, onSelectEvidence 
 
 function Comparison({ result }: { result: CounterfactualResult }) {
   const comparison = result.comparison;
+  const observedTargets = observedTargetComparison(result);
   const rows = [
     { market: "baseline" as const, color: "var(--mosaic-cobalt)" },
     { market: "alternative" as const, color: "var(--mosaic-vermilion)" },
@@ -112,10 +113,11 @@ function Comparison({ result }: { result: CounterfactualResult }) {
       </div>;
     })}</div>
     <div className="mosaic-compare-footnote">
-      <span>{comparison.sharedEntities.length} shared entities</span>
-      <span>{comparison.baselineOnlyEntities.length} baseline-only</span>
-      <span>{comparison.alternativeOnlyEntities.length} alternative-only</span>
+      {observedTargets.available ? <><span>{observedTargets.sharedCount} shared observed targets</span><span>{observedTargets.baselineOnlyCount} baseline-only targets</span><span>{observedTargets.alternativeOnlyCount} alternative-only targets</span></> : <span>Observed target overlap unavailable</span>}
+      <span>{comparison.sharedEntities.length} shared entities including the cultural signal</span>
     </div>
+    {observedTargets.exactObservedEquality && <p className="mosaic-compare-context mt-3 text-xs text-[var(--mosaic-muted)]">No observed differentiation in the returned results for these market queries. The same target entities, ordering and provider affinity values were observed. This does not establish that the markets have identical cultural landscapes.</p>}
+    {!observedTargets.complete && observedTargets.available && <p className="mosaic-compare-context mt-3 text-xs text-[var(--mosaic-muted)]">Observed target counts are limited to the available validated evidence because one or both market results are incomplete.</p>}
     <details className="mosaic-compare-disclosure"><summary>Methodology and limitations</summary><p>These are geographically separate provider result sets. Their differences do not prove demand, commercial suitability, partnerships or causation.</p><ul>{[...new Set(comparison.limitations)].map((limitation) => <li key={limitation}>{limitation}</li>)}</ul></details>
   </section>;
 }
