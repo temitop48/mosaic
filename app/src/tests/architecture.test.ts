@@ -137,6 +137,88 @@ test("entity-based affinity preserves scores, explainability, geography, and que
   }
 });
 
+test("brand affinity serializes the location as a signal and preserves provider attribution", async () => {
+  let requestedUrl = "";
+  const provider = providerWithResponse(
+    new Response(JSON.stringify({
+      success: true,
+      results: { entities: [{
+        entity_id: "qloo:brand:fixture",
+        name: "Fixture Brand",
+        subtype: "urn:entity:brand",
+        query: { affinity: 0.91, explainability: { "signal.interests.entities": [{ entity_id: "seed-1", score: 1 }] } },
+      }] },
+      query: { localities: { signal: { entity_id: "locality-london", name: "London" } } },
+    }), { status: 200 }),
+    (url) => { requestedUrl = url; },
+  );
+  const result = await provider.discoverAffinity({
+    entityId: "seed-1",
+    sourceEntityCategory: "brand",
+    sourceEntityName: "Starbucks",
+    targetType: "urn:entity:brand",
+    locationQuery: "London",
+    limit: 20,
+    explainability: true,
+  });
+  const url = new URL(requestedUrl);
+  assert.equal(url.searchParams.get("signal.location.query"), "London");
+  assert.equal(url.searchParams.has("filter.location.query"), false);
+  assert.equal(url.searchParams.get("sort_by"), "affinity");
+  assert.equal(url.searchParams.get("take"), "20");
+  if (result.ok) {
+    assert.equal(result.data[0].queryParameters["signal.location.query"], "London");
+    assert.equal(result.data[0].queryParameters["filter.location.query"], undefined);
+    assert.equal(result.data[0].provenance.providerId, "qloo");
+    assert.equal(result.data[0].provenance.sourceReference, "qloo:insights:seed-1:qloo:brand:fixture");
+    assert.equal(result.data[0].geographicContext, undefined);
+  }
+});
+
+test("brand affinity uses the signal location for New York and omits the filter location", async () => {
+  let requestedUrl = "";
+  const provider = providerWithResponse(
+    new Response(JSON.stringify({ success: true, results: { entities: [{ entity_id: "qloo:brand:fixture", name: "Fixture Brand", query: { affinity: 0.91 } }] }, query: {} }),
+    { status: 200 }),
+    (url) => { requestedUrl = url; },
+  );
+  const result = await provider.discoverAffinity({ entityId: "seed-1", sourceEntityCategory: "brand", targetType: "urn:entity:brand", locationQuery: "New York" });
+  assert.equal(result.ok, true);
+  const url = new URL(requestedUrl);
+  assert.equal(url.searchParams.get("signal.location.query"), "New York");
+  assert.equal(url.searchParams.has("filter.location.query"), false);
+});
+
+test("place affinity retains filter location and omits signal location", async () => {
+  let requestedUrl = "";
+  const provider = providerWithResponse(
+    new Response(JSON.stringify({ success: true, results: { entities: [{ entity_id: "qloo:place:fixture", name: "Fixture Place", query: { affinity: 0.82 } }] }, query: {} }),
+    { status: 200 }),
+    (url) => { requestedUrl = url; },
+  );
+  const result = await provider.discoverAffinity({ entityId: "seed-1", sourceEntityCategory: "brand", targetType: "urn:entity:place", locationQuery: "New York" });
+  assert.equal(result.ok, true);
+  const url = new URL(requestedUrl);
+  assert.equal(url.searchParams.get("filter.location.query"), "New York");
+  assert.equal(url.searchParams.has("signal.location.query"), false);
+});
+
+test("empty location queries are omitted without changing affinity controls", async () => {
+  let requestedUrl = "";
+  const provider = providerWithResponse(
+    new Response(JSON.stringify({ success: true, results: { entities: [{ entity_id: "qloo:brand:fixture", name: "Fixture Brand", query: { affinity: 0.91 } }] }, query: {} }),
+    { status: 200 }),
+    (url) => { requestedUrl = url; },
+  );
+  const result = await provider.discoverAffinity({ entityId: "seed-1", sourceEntityCategory: "brand", targetType: "urn:entity:brand", locationQuery: "   ", limit: 20, explainability: true });
+  assert.equal(result.ok, true);
+  const url = new URL(requestedUrl);
+  assert.equal(url.searchParams.has("signal.location.query"), false);
+  assert.equal(url.searchParams.has("filter.location.query"), false);
+  assert.equal(url.searchParams.get("sort_by"), "affinity");
+  assert.equal(url.searchParams.get("take"), "20");
+});
+
 test("malformed insight entities without actual affinity scores are discarded", async () => {
   const provider = providerWithResponse(new Response(JSON.stringify({ results: { entities: [
     { entity_id: "missing-score", name: "No Score", popularity: 0.99 },

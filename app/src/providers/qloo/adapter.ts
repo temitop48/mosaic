@@ -153,6 +153,12 @@ const SUPPORTED_INSIGHT_TYPES = new Set([
   "urn:entity:videogame",
 ]);
 
+const BRAND_TARGET_TYPE = "urn:entity:brand";
+
+function locationParameterForTargetType(targetType: string): "signal.location.query" | "filter.location.query" {
+  return targetType === BRAND_TARGET_TYPE ? "signal.location.query" : "filter.location.query";
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -242,9 +248,10 @@ export function normalizeQlooAffinity(
     const objectEntityId = toEntityId(item);
     const score = isRecord(item.query) && typeof item.query.affinity === "number" ? item.query.affinity : undefined;
     if (!objectEntityId || score === undefined || !Number.isFinite(score)) return [];
+    const locationValue = queryParameters["signal.location.query"] ?? queryParameters["filter.location.query"] ?? "global";
     const parsed = AffinityEvidenceSchema.safeParse({
       kind: "affinity",
-      id: `qloo:affinity:${encodeURIComponent(request.entityId)}:${encodeURIComponent(objectEntityId)}:${encodeURIComponent(queryParameters["filter.location.query"] ?? "global")}`,
+      id: `qloo:affinity:${encodeURIComponent(request.entityId)}:${encodeURIComponent(objectEntityId)}:${encodeURIComponent(locationValue)}`,
       subjectEntityId: request.entityId,
       subjectEntityCategory: request.sourceEntityCategory,
       subjectEntityName: request.sourceEntityName,
@@ -344,8 +351,8 @@ export class QlooProvider implements CulturalIntelligenceProvider {
     url.searchParams.set("feature.explainability", String(request.explainability ?? false));
     url.searchParams.set("sort_by", "affinity");
     url.searchParams.set("take", String(request.limit ?? 20));
-    const locationQuery = request.locationQuery ?? request.geography?.city ?? request.geography?.region;
-    if (locationQuery) url.searchParams.set("filter.location.query", locationQuery);
+    const locationQuery = (request.locationQuery ?? request.geography?.city ?? request.geography?.region)?.trim();
+    if (locationQuery) url.searchParams.set(locationParameterForTargetType(request.targetType), locationQuery);
     return this.requestAffinity(url, request);
   }
 
