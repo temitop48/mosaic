@@ -8,11 +8,16 @@ import {
   type LaunchBlueprint,
   type LaunchScenarioInput,
 } from "@/agent/contracts";
+import type { ResearchRequestDescriptor, TrustedResearchMetadata } from "@/agent/decision/contracts";
 import { extractScenario, createResearchPlan, resolveEntityCandidates } from "@/agent/planning";
 import type { StrategicModelInput, StrategicModelResult, StructuredModelProvider } from "@/agent/model";
 import { LaunchBlueprintSchema } from "@/agent/contracts";
 
 type IdFactory = () => string;
+
+function geographicStrategy(targetType: string): ResearchRequestDescriptor["geographicStrategy"] {
+  return targetType === "urn:entity:brand" ? "signal.location.query" : "filter.location.query";
+}
 
 function error(code: AnalysisError["code"], message: string): AnalysisError { return { code, message }; }
 function emptyGraph(): EvidenceGraph { return { nodes: [], edges: [] }; }
@@ -52,6 +57,7 @@ export class DecisionEngine {
   private readonly idFactory: IdFactory;
   private readonly provider: CulturalIntelligenceProvider;
   private readonly model?: StructuredModelProvider;
+  private readonly trustedMetadata = new WeakMap<AnalysisResult, TrustedResearchMetadata>();
 
   constructor(
     provider: CulturalIntelligenceProvider,
@@ -67,21 +73,50 @@ export class DecisionEngine {
     return this.model?.generateCounterfactualInterpretation?.bind(this.model);
   }
 
+  /** Server-side access for the bounded agent bridge; callers still provide the existing engine instance. */
+  getResearchProvider(): CulturalIntelligenceProvider {
+    return this.provider;
+  }
+
+  /** Server-only metadata captured during this engine's research execution. */
+  getTrustedResearchMetadata(result: AnalysisResult): TrustedResearchMetadata | undefined {
+    const metadata = this.trustedMetadata.get(result);
+    return metadata ? { ...metadata, completedRequests: [...metadata.completedRequests], resolvedSubjects: [...metadata.resolvedSubjects] } : undefined;
+  }
+
   /** Executes only provider-backed research, without requiring Gemini. */
   async research(input: LaunchScenarioInput | unknown): Promise<AnalysisResult> {
     const analysisId = this.idFactory();
     const extracted = extractScenario(input);
     const diagnostics: ProviderDiagnostic[] = [];
-    if (!extracted.ok) return { analysisId, status: "failed", scenario: { productConcept: "", seedQueries: [], targetTypes: [] }, resolutions: [], evidence: [], graph: emptyGraph(), limitations: [], errors: [error("INVALID_SCENARIO", extracted.message)], diagnostics };
+    const metadata: TrustedResearchMetadata = { logicalOperationCount: 0, completedRequests: [], resolvedSubjects: [] };
+    let providerAttempts = 0;
+    let providerAttemptsKnown = true;
+    const publish = (result: AnalysisResult): AnalysisResult => {
+      this.trustedMetadata.set(result, {
+        logicalOperationCount: metadata.logicalOperationCount,
+        providerAttemptsUsed: providerAttemptsKnown ? providerAttempts : undefined,
+        completedRequests: [...metadata.completedRequests],
+        resolvedSubjects: [...metadata.resolvedSubjects],
+      });
+      return result;
+    };
+    const recordDiagnostics = (items: ProviderDiagnostic[]): void => {
+      diagnostics.push(...items);
+      if (items.length === 0) providerAttemptsKnown = false;
+      for (const item of items) providerAttempts += item.attempts;
+    };
+    if (!extracted.ok) return publish({ analysisId, status: "failed", scenario: { productConcept: "", seedQueries: [], targetTypes: [] }, resolutions: [], evidence: [], graph: emptyGraph(), limitations: [], errors: [error("INVALID_SCENARIO", extracted.message)], diagnostics });
     const scenario = extracted.scenario;
     const planned = createResearchPlan(scenario, this.provider.getCapabilities());
-    if (!planned.ok) return { analysisId, status: "failed", scenario, resolutions: [], evidence: [], graph: emptyGraph(), limitations: [], errors: [error(planned.code, planned.message)], diagnostics };
+    if (!planned.ok) return publish({ analysisId, status: "failed", scenario, resolutions: [], evidence: [], graph: emptyGraph(), limitations: [], errors: [error(planned.code, planned.message)], diagnostics });
     const registry = new EvidenceRegistry();
     const resolutions = [];
     const errors: AnalysisError[] = [];
     for (const query of planned.plan.seedQueries) {
+      metadata.logicalOperationCount += 1;
       const result = await this.provider.searchEntities({ query, category: planned.plan.seedCategory, limit: planned.plan.maxEntityResults });
-      diagnostics.push(...(result.diagnostics ?? []));
+      recordDiagnostics(result.diagnostics ?? []);
       if (!result.ok) {
         errors.push(error(result.error.code === "UNSUPPORTED_CAPABILITY" ? "UNSUPPORTED_CAPABILITY" : "PROVIDER_FAILURE", result.error.message));
         resolutions.push({ query, status: "not-found" as const, candidates: [] });
@@ -97,6 +132,7 @@ export class DecisionEngine {
         errors.push(error("AMBIGUOUS_ENTITY", `Multiple equally valid candidates matched seed query: ${query}`));
       } else if (resolution.entity) {
         registry.registerEntity(resolution.entity);
+        if (!metadata.resolvedSubjects.some((entity) => entity.id === resolution.entity?.id)) metadata.resolvedSubjects.push(resolution.entity);
       }
       resolutions.push(resolution);
     }
@@ -107,6 +143,14 @@ export class DecisionEngine {
         const requestKey = JSON.stringify([resolution.entity.id, targetType, planned.plan.locationQuery ?? "", planned.plan.explainability]);
         if (affinityRequests.has(requestKey)) continue;
         affinityRequests.add(requestKey);
+        metadata.logicalOperationCount += 1;
+        metadata.completedRequests.push({
+          subjectEntityId: resolution.entity.id,
+          targetEntityType: targetType,
+          market: planned.plan.locationQuery ?? "",
+          geographicStrategy: geographicStrategy(targetType),
+          explainability: planned.plan.explainability,
+        });
         const result = await this.provider.discoverAffinity({
           entityId: resolution.entity.id,
           sourceEntityCategory: resolution.entity.category,
@@ -116,7 +160,7 @@ export class DecisionEngine {
           limit: planned.plan.maxAffinityResults,
           explainability: planned.plan.explainability,
         });
-        diagnostics.push(...(result.diagnostics ?? []));
+        recordDiagnostics(result.diagnostics ?? []);
         if (!result.ok) {
           errors.push(error(result.error.code === "UNSUPPORTED_CAPABILITY" ? "UNSUPPORTED_CAPABILITY" : "PROVIDER_FAILURE", result.error.message));
           continue;
@@ -145,7 +189,7 @@ export class DecisionEngine {
     const evidence = registry.listValidatedEvidence();
     const limitations = [...planned.plan.limitations];
     const graph = buildEvidenceGraph(registry);
-    return {
+    return publish({
       analysisId,
       status: errors.length || evidence.length === 0 ? "partial" : "completed",
       scenario,
@@ -156,7 +200,7 @@ export class DecisionEngine {
       limitations,
       errors,
       diagnostics,
-    };
+    });
   }
 
   async analyze(input: LaunchScenarioInput | unknown): Promise<AnalysisResult> {

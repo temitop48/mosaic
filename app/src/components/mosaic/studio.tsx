@@ -19,9 +19,11 @@ import { StudioConstellation } from "./studio-constellation";
 import { ArrowRight, CircleAlert, LoaderCircle, MapPin, Search } from "lucide-react";
 import type { CounterfactualResult, StrategicClaim } from "@/core/counterfactuals/contracts";
 import type { DecisionSensitivityResult } from "@/core/sensitivity/contracts";
+import type { DecisionStability } from "@/core/decision-stability/contracts";
 import type { CulturalEvidence } from "@/core/evidence/types";
 import { Button, Card, EmptyState, EvidenceBadge, ErrorState, ProvenanceIndicator, SectionHeading, SelectControl, StatusBadge, TextField, usePresentationView, useStrategicInterpretationPreference } from "./primitives";
-import { createCounterfactualRequest, CULTURAL_CONNECTIONS_LABEL, evidenceForMarket, locationForMarket, mapCounterfactualResponse, normalizeResearchTarget, observedTargetComparison, providerExplanationText, RESEARCH_TARGET_OPTIONS, researchScopeForMarket, strategicReferences, targetTypeLabel, type StudioMarket, type StudioScenarioInput } from "./studio-model";
+import { createCounterfactualRequest, CULTURAL_CONNECTIONS_LABEL, evidenceForMarket, locationForMarket, mapCounterfactualResponse, normalizeResearchTarget, observedTargetComparison, providerExplanationText, RESEARCH_TARGET_OPTIONS, researchScopeForMarket, strategicReferences, targetTypeLabel, type StudioMarket, type StudioScenarioInput, type StudioResearchResult } from "./studio-model";
+import { AgentResearchControls, DecisionBrief, type AgentResearchDraft } from "./decision-brief";
 import { buildSensitivityResult, SensitivityPanel, validateSensitivityRequest } from "./sensitivity-panel";
 
 const cx = (...values: Array<string | false | undefined>) => values.filter(Boolean).join(" ");
@@ -48,10 +50,11 @@ function ScenarioForm({ onSubmit, busy, initial }: { onSubmit: (input: StudioSce
   const [alternativeLocation, setAlternativeLocation] = useState(initial?.alternativeLocation ?? "New York");
   const [researchTarget, setResearchTarget] = useState(initial?.researchTarget ?? normalizeResearchTarget(undefined));
   const [includeStrategicInterpretation, setIncludeStrategicInterpretation] = useState(initial?.includeStrategicInterpretation ?? strategicDefault);
+  const [agentResearch, setAgentResearch] = useState<AgentResearchDraft>({ enabled: initial?.agentResearchEnabled ?? false, objective: initial?.agentObjective ?? "geographic-cultural-comparison", followUpTarget: initial?.agentFollowUpTarget ?? "none" });
   useEffect(() => {
     if (!strategicTouched.current) setIncludeStrategicInterpretation(strategicDefault);
   }, [strategicDefault]);
-  return <form className="grid gap-3" onSubmit={(event) => { event.preventDefault(); onSubmit({ productConcept, seedQuery, baselineLocation, alternativeLocation, researchTarget, includeStrategicInterpretation }); }}>
+  return <form className="grid gap-3" onSubmit={(event) => { event.preventDefault(); onSubmit({ productConcept, seedQuery, baselineLocation, alternativeLocation, researchTarget, includeStrategicInterpretation, agentResearchEnabled: agentResearch.enabled, agentObjective: agentResearch.objective, agentFollowUpTarget: agentResearch.followUpTarget }); }}>
     <div className="grid gap-3 min-[1400px]:grid-cols-[minmax(0,1.4fr)_minmax(0,1.2fr)_minmax(0,0.7fr)_minmax(0,0.7fr)_minmax(160px,0.85fr)] max-[1399px]:grid-cols-2 lg:items-end">
       <TextField className="[&>label]:text-[11px] [&>label]:uppercase [&>label]:tracking-[0.12em] [&>input]:min-h-10" required label="Launch concept" placeholder="A coffee brand for creative communities" value={productConcept} onChange={(event) => setProductConcept(event.target.value)} />
       <TextField className="[&>label]:text-[11px] [&>label]:uppercase [&>label]:tracking-[0.12em] [&>input]:min-h-10" required label="Cultural signal" placeholder="Seed brand or entity" value={seedQuery} onChange={(event) => setSeedQuery(event.target.value)} />
@@ -81,6 +84,7 @@ function ScenarioForm({ onSubmit, busy, initial }: { onSubmit: (input: StudioSce
         </span>
       </label>
     </div>
+    <AgentResearchControls value={agentResearch} initialTarget={researchTarget} onChange={setAgentResearch} />
   </form>;
 }
 
@@ -136,7 +140,7 @@ function ResearchStatus({ result }: { result: CounterfactualResult }) {
 
 export function StudioWorkspace() {
   const { view } = usePresentationView();
-  const [result, setResult] = useState<CounterfactualResult>();
+  const [result, setResult] = useState<StudioResearchResult>();
   const [market, setMarket] = useState<StudioMarket>("baseline");
   const [selectedEvidenceId, setSelectedEvidenceId] = useState<string>();
   const [selectedEvidenceSource, setSelectedEvidenceSource] = useState<"original" | "variant">("original");
@@ -145,6 +149,7 @@ export function StudioWorkspace() {
   const [lastRequest, setLastRequest] = useState<StudioScenarioInput>();
   const [savedResearchAt, setSavedResearchAt] = useState<string>();
   const [sensitivity, setSensitivity] = useState<DecisionSensitivityResult>();
+  const [savedStability, setSavedStability] = useState<DecisionStability>();
   const [experimentBusy, setExperimentBusy] = useState(false);
   const [experimentError, setExperimentError] = useState<string>();
   const experimentController = useRef<AbortController | undefined>(undefined);
@@ -167,6 +172,7 @@ export function StudioWorkspace() {
       setBusy(false);
       setSavedResearchAt(entry.createdAt);
       setSensitivity(undefined);
+      setSavedStability(entry.decisionStability);
       setExperimentError(undefined);
       setExperimentBusy(false);
     });
@@ -176,7 +182,7 @@ export function StudioWorkspace() {
   async function submit(input: StudioScenarioInput) {
     experimentRun.current += 1;
     experimentController.current?.abort();
-    setSensitivity(undefined); setExperimentError(undefined); setExperimentBusy(false);
+    setSensitivity(undefined); setSavedStability(undefined); setExperimentError(undefined); setExperimentBusy(false);
     setBusy(true); setError(undefined); setLastRequest(input); setSelectedEvidenceId(undefined); setSelectedEvidenceSource("original"); setSavedResearchAt(undefined);
     try {
       const response = await fetch("/api/counterfactual", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(createCounterfactualRequest(input)) });
@@ -211,7 +217,7 @@ export function StudioWorkspace() {
       if (run === experimentRun.current) { setExperimentBusy(false); experimentController.current = undefined; }
     }
   }
-  if (view === "canvas") return <CanvasView result={result} busy={busy} error={error} lastRequest={lastRequest} selectedEvidenceId={selectedEvidenceId} selectedEvidenceSource={selectedEvidenceSource} onSubmit={submit} onSelectEvidence={selectOriginalEvidence} savedResearchAt={savedResearchAt} sensitivity={sensitivity} experimentBusy={experimentBusy} experimentError={experimentError} onRunExperiment={runExperiment} onInspectSensitivityEvidence={selectSensitivityEvidence} />;
+  if (view === "canvas") return <CanvasView result={result} busy={busy} error={error} lastRequest={lastRequest} selectedEvidenceId={selectedEvidenceId} selectedEvidenceSource={selectedEvidenceSource} onSubmit={submit} onSelectEvidence={selectOriginalEvidence} savedResearchAt={savedResearchAt} sensitivity={sensitivity} savedStability={savedStability} experimentBusy={experimentBusy} experimentError={experimentError} onRunExperiment={runExperiment} onInspectSensitivityEvidence={selectSensitivityEvidence} />;
   return <><div className="mosaic-studio-page mosaic-studio-v2 mosaic-studio-stable">
     <div className="mosaic-studio-heading">
       <div><p className="mosaic-studio-eyebrow">Cultural counterfactual</p><h1>Same signal.<br />Different worlds.</h1><p>See how your cultural signal connects to different experiences in different cities.</p></div>
@@ -224,8 +230,8 @@ export function StudioWorkspace() {
     {busy && <div className="mosaic-studio-loading" aria-live="polite"><LoaderCircle aria-hidden className="size-4 animate-spin" />Researching both markets and validating evidence…</div>}
     {result && <div className="mosaic-studio-status"><ResearchStatus result={result} /></div>}
     {savedResearchAt && <div className="mt-4 rounded-[var(--mosaic-radius-sm)] border border-[var(--mosaic-line)] bg-[var(--mosaic-blue-wash)] px-4 py-3 text-sm text-[var(--mosaic-ink)]" role="status"><strong>Saved research</strong><span className="ml-2 text-xs text-[var(--mosaic-muted)]">Original research saved {new Date(savedResearchAt).toLocaleString()}</span></div>}
-    <SensitivityPanel key={lastRequest ? `${lastRequest.seedQuery}:${lastRequest.productConcept}:${lastRequest.baselineLocation}:${lastRequest.alternativeLocation}:${lastRequest.researchTarget ?? "urn:entity:place"}` : "empty"} originalRequest={lastRequest} originalResult={result} sensitivity={sensitivity} busy={experimentBusy} error={experimentError} historical={Boolean(savedResearchAt)} onRun={runExperiment} onInspectEvidence={selectSensitivityEvidence} />
-    {result && lastRequest && <SaveAnalysisAction request={lastRequest} result={result} />}
+    <SensitivityPanel key={lastRequest ? `${lastRequest.seedQuery}:${lastRequest.productConcept}:${lastRequest.baselineLocation}:${lastRequest.alternativeLocation}:${lastRequest.researchTarget ?? "urn:entity:place"}` : "empty"} originalRequest={lastRequest} originalResult={result} sensitivity={sensitivity} savedStability={savedStability} busy={experimentBusy} error={experimentError} historical={Boolean(savedResearchAt)} onRun={runExperiment} onInspectEvidence={selectSensitivityEvidence} />
+    {result && lastRequest && <SaveAnalysisAction request={lastRequest} result={result} decisionStability={sensitivity?.decisionStability} />}
     {lastRequest && result?.status === "failed" && <ErrorState title="Research could not complete" description={result.errors.map((item) => item.message).join(" ") || "No validated comparison was returned."} />}
     <div id="insights-workspace" className="mosaic-studio-main-grid" aria-label="Research insights">
       <div className="mosaic-studio-main-column">
@@ -241,5 +247,6 @@ export function StudioWorkspace() {
     </div>
     {selectedEvidence && <Card className="mt-7 p-5" as="section"><div className="flex items-start justify-between gap-4"><div><p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--mosaic-cobalt)]">Selected evidence</p><h2 className="mosaic-serif mt-2 text-2xl">{evidenceName(selectedEvidence)}</h2></div><ProvenanceIndicator provider={selectedEvidence.provenance.providerId} detail={selectedEvidence.provenance.sourceReference} /></div><div className="mt-4 grid gap-3 text-xs text-[var(--mosaic-muted)] sm:grid-cols-4"><p><span className="font-semibold text-[var(--mosaic-ink)]">Category</span><br />{selectedEvidence.kind === "affinity" ? selectedEvidence.objectEntityCategory : "—"}</p><p><span className="font-semibold text-[var(--mosaic-ink)]">Provider score</span><br />{selectedEvidence.kind === "affinity" ? formatScore(selectedEvidence.providerScore) : "—"}</p><p><span className="font-semibold text-[var(--mosaic-ink)]">Geographic context</span><br />{selectedEvidence.geographicContext?.city ?? "Query context retained"}</p><p><span className="font-semibold text-[var(--mosaic-ink)]">Target type</span><br />{selectedEvidence.kind === "affinity" ? targetTypeLabel(selectedEvidence.queryParameters["filter.type"]) : "—"}</p></div>{selectedEvidence.kind === "affinity" && <div className="mt-4 rounded-[var(--mosaic-radius-sm)] bg-[var(--mosaic-blue-wash)] p-3.5"><p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--mosaic-cobalt)]">Qloo-provided explanation</p><p className="mt-1 text-sm leading-5 text-[var(--mosaic-ink)]">{providerExplanationText(selectedEvidence.explainability) ?? "Detailed provider explanation unavailable."}</p></div>}</Card>}
     {result && <StrategicPanel result={result} onSelectEvidence={selectOriginalEvidence} />}
+    {result && <DecisionBrief result={result} stability={sensitivity?.decisionStability ?? savedStability} onInspectEvidence={selectOriginalEvidence} />}
   </div></>;
 }

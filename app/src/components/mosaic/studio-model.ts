@@ -1,6 +1,8 @@
 import type { CounterfactualResult } from "@/core/counterfactuals/contracts";
 import type { CulturalEvidence } from "@/core/evidence/types";
 import type { DecisionSensitivityRelationship, DecisionSensitivityResult } from "@/core/sensitivity/contracts";
+import type { DecisionAssessment, ExecutionTrace, ResearchBudget, StopReason } from "@/agent/decision/contracts";
+import type { ProviderDiagnostic } from "@/providers/interfaces/contracts";
 
 export type StudioMarket = "baseline" | "alternative";
 export const RESEARCH_TARGET_PLACE = "urn:entity:place" as const;
@@ -18,7 +20,31 @@ export type StudioScenarioInput = {
   includeStrategicInterpretation: boolean;
   /** Optional for compatibility with saved analyses created before target selection. */
   researchTarget?: ResearchTarget;
+  agentResearchEnabled?: boolean;
+  agentObjective?: AgentObjectiveKind;
+  agentFollowUpTarget?: ResearchTarget | "none";
 };
+
+export type AgentObjectiveKind = "geographic-cultural-comparison" | "cultural-positioning" | "local-entity-discovery";
+export const AGENT_OBJECTIVE_OPTIONS: ReadonlyArray<{ label: string; value: AgentObjectiveKind; description: string }> = [
+  { label: "Compare cultural connections across markets", value: "geographic-cultural-comparison", description: "Check whether the returned cultural observations differ by city." },
+  { label: "Explore cultural positioning", value: "cultural-positioning", description: "Assess the available cultural evidence around the selected signal." },
+  { label: "Investigate local places", value: "local-entity-discovery", description: "Explicitly permit a bounded places follow-up when the primary target is a brand." },
+];
+
+export type AgentResearchResponse = {
+  status: "completed" | "partial" | "stopped" | "unavailable";
+  assessment?: DecisionAssessment;
+  trace?: ExecutionTrace;
+  stopReason?: StopReason;
+  budget?: ResearchBudget;
+  followUpEvidence?: CulturalEvidence[];
+  diagnostics?: ProviderDiagnostic[];
+  errors?: Array<{ market?: string; code: string; message: string }>;
+  error?: { code: string; message: string };
+};
+
+export type StudioResearchResult = CounterfactualResult & { agentResearch?: AgentResearchResponse };
 
 export const CULTURAL_CONNECTIONS_LABEL = "Top Cultural Connections";
 
@@ -27,7 +53,9 @@ export function normalizeResearchTarget(target: string | undefined): ResearchTar
 }
 
 export function createCounterfactualRequest(input: StudioScenarioInput) {
-  return {
+  const initialTarget = normalizeResearchTarget(input.researchTarget);
+  const followUpTarget = input.agentFollowUpTarget && input.agentFollowUpTarget !== "none" && input.agentFollowUpTarget !== initialTarget ? input.agentFollowUpTarget : undefined;
+  const request = {
     baseline: {
       productConcept: input.productConcept.trim(),
       launchLocation: input.baselineLocation.trim(),
@@ -42,6 +70,19 @@ export function createCounterfactualRequest(input: StudioScenarioInput) {
       alternativeValue: input.alternativeLocation.trim(),
     },
     includeStrategicInterpretation: input.includeStrategicInterpretation,
+  };
+  if (!input.agentResearchEnabled) return request;
+  return {
+    ...request,
+    agentResearch: {
+      enabled: true,
+      objective: {
+        kind: input.agentObjective ?? "geographic-cultural-comparison",
+        requestedTargetTypes: followUpTarget ? [followUpTarget] : [],
+        requestedOutcome: followUpTarget ? "Investigate an explicitly requested additional cultural dimension" : "Assess the available cultural evidence within the selected research scope",
+      },
+      authorizedTargetTypes: [...new Set([initialTarget, ...(followUpTarget ? [followUpTarget] : [])])],
+    },
   };
 }
 
@@ -336,10 +377,15 @@ export function strategicReferences(result: CounterfactualResult): Array<{ evide
   return result.strategicInterpretation?.supportingEvidenceReferences ?? [];
 }
 
-export function mapCounterfactualResponse(input: unknown): CounterfactualResult | undefined {
+function isAgentResearchResponse(value: unknown): value is AgentResearchResponse {
+  return Boolean(value && typeof value === "object" && "status" in value && ["completed", "partial", "stopped", "unavailable"].includes(String((value as { status?: unknown }).status)));
+}
+
+export function mapCounterfactualResponse(input: unknown): StudioResearchResult | undefined {
   if (!input || typeof input !== "object") return undefined;
-  const candidate = input as Partial<CounterfactualResult>;
-  return candidate.comparison && candidate.status && candidate.baselineScenario && candidate.alternativeScenario
-    ? candidate as CounterfactualResult
-    : undefined;
+  const candidate = input as Partial<StudioResearchResult> & { agentResearch?: unknown };
+  if (!candidate.comparison || !candidate.status || !candidate.baselineScenario || !candidate.alternativeScenario) return undefined;
+  const mapped: StudioResearchResult = { ...(candidate as CounterfactualResult) };
+  if (isAgentResearchResponse(candidate.agentResearch)) mapped.agentResearch = candidate.agentResearch;
+  return mapped;
 }

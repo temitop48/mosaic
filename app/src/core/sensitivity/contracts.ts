@@ -1,4 +1,5 @@
 import type { CounterfactualEvidenceObservation, CounterfactualResult } from "@/core/counterfactuals/contracts";
+import type { DecisionStability } from "@/core/decision-stability/contracts";
 
 export type DecisionSensitivityAssumption = {
   dimension: "culturalSignal";
@@ -58,6 +59,7 @@ export type DecisionSensitivityResult = {
   variantResult: CounterfactualResult;
   comparison: DecisionSensitivityComparison;
   limitations: string[];
+  decisionStability?: DecisionStability;
 };
 
 export type DecisionSensitivityInput = {

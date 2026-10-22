@@ -11,6 +11,7 @@ import {
   type DecisionSensitivityRelationship,
   type DecisionSensitivityResult,
 } from "@/core/sensitivity/contracts";
+import { assessDecisionStability } from "@/core/decision-stability/assessment";
 
 const LIMITATIONS = [
   "Each comparison uses the provider's returned top-N result set; an item not observed in the variant is not evidence that the relationship is culturally absent.",
@@ -214,7 +215,7 @@ export function compareDecisionSensitivity(input: unknown): DecisionSensitivityR
   validateInput(input);
   const { assumption, originalResult, variantResult } = input;
   validateCompatibility(assumption, originalResult, variantResult);
-  return {
+  const result: DecisionSensitivityResult = {
     schemaVersion: 1,
     assumption: { dimension: "culturalSignal", originalValue: assumption.originalValue.trim(), alternativeValue: assumption.alternativeValue.trim() },
     originalResult,
@@ -225,6 +226,8 @@ export function compareDecisionSensitivity(input: unknown): DecisionSensitivityR
     },
     limitations: [...LIMITATIONS],
   };
+  result.decisionStability = assessDecisionStability(result);
+  return result;
 }
 
 export type { DecisionSensitivityInput } from "@/core/sensitivity/contracts";
