@@ -2,15 +2,28 @@ import type { CounterfactualResult } from "@/core/counterfactuals/contracts";
 import type { CulturalEvidence } from "@/core/evidence/types";
 
 export type StudioMarket = "baseline" | "alternative";
+export const RESEARCH_TARGET_PLACE = "urn:entity:place" as const;
+export const RESEARCH_TARGET_BRAND = "urn:entity:brand" as const;
+export type ResearchTarget = typeof RESEARCH_TARGET_PLACE | typeof RESEARCH_TARGET_BRAND;
+export const RESEARCH_TARGET_OPTIONS: ReadonlyArray<{ label: string; value: ResearchTarget }> = [
+  { label: "Places", value: RESEARCH_TARGET_PLACE },
+  { label: "Brands", value: RESEARCH_TARGET_BRAND },
+];
 export type StudioScenarioInput = {
   productConcept: string;
   seedQuery: string;
   baselineLocation: string;
   alternativeLocation: string;
   includeStrategicInterpretation: boolean;
+  /** Optional for compatibility with saved analyses created before target selection. */
+  researchTarget?: ResearchTarget;
 };
 
 export const CULTURAL_CONNECTIONS_LABEL = "Top Cultural Connections";
+
+export function normalizeResearchTarget(target: string | undefined): ResearchTarget {
+  return target === RESEARCH_TARGET_BRAND ? RESEARCH_TARGET_BRAND : RESEARCH_TARGET_PLACE;
+}
 
 export function createCounterfactualRequest(input: StudioScenarioInput) {
   return {
@@ -20,7 +33,7 @@ export function createCounterfactualRequest(input: StudioScenarioInput) {
       seedQueries: [input.seedQuery.trim()],
       seedCategory: "brand" as const,
       requestedOutcome: "Compare cultural associations across launch locations",
-      targetTypes: ["urn:entity:place"],
+      targetTypes: [normalizeResearchTarget(input.researchTarget)],
     },
     modification: {
       dimension: "launchLocation" as const,
@@ -45,6 +58,16 @@ function researchForMarket(result: CounterfactualResult, market: StudioMarket) {
 
 export function targetTypeLabel(targetType: string | undefined): string {
   return targetType?.startsWith("urn:entity:") ? targetType.slice("urn:entity:".length) : targetType ?? "unavailable";
+}
+
+export function researchTargetForResult(result: CounterfactualResult): ResearchTarget {
+  const evidence = [...(result.baselineResearch?.evidence ?? []), ...(result.alternativeResearch?.evidence ?? [])].find((item) => item.kind === "affinity");
+  const targetType = evidence?.kind === "affinity" ? evidence.queryParameters["filter.type"] : result.baselineResearch?.plan?.targetTypes[0];
+  return normalizeResearchTarget(targetType);
+}
+
+export function continuityLabelForTarget(target: ResearchTarget): "Destination Continuity" | "Entity Continuity" {
+  return target === RESEARCH_TARGET_PLACE ? "Destination Continuity" : "Entity Continuity";
 }
 
 export function researchScopeForMarket(result: CounterfactualResult, market: StudioMarket): {

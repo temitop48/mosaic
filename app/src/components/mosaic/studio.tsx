@@ -21,7 +21,7 @@ import type { CounterfactualResult, StrategicClaim } from "@/core/counterfactual
 import type { DecisionSensitivityResult } from "@/core/sensitivity/contracts";
 import type { CulturalEvidence } from "@/core/evidence/types";
 import { Button, Card, EmptyState, EvidenceBadge, ErrorState, ProvenanceIndicator, SectionHeading, SelectControl, StatusBadge, TextField, usePresentationView, useStrategicInterpretationPreference } from "./primitives";
-import { createCounterfactualRequest, CULTURAL_CONNECTIONS_LABEL, evidenceForMarket, locationForMarket, mapCounterfactualResponse, providerExplanationText, researchScopeForMarket, strategicReferences, targetTypeLabel, type StudioMarket, type StudioScenarioInput } from "./studio-model";
+import { createCounterfactualRequest, CULTURAL_CONNECTIONS_LABEL, evidenceForMarket, locationForMarket, mapCounterfactualResponse, normalizeResearchTarget, providerExplanationText, RESEARCH_TARGET_OPTIONS, researchScopeForMarket, strategicReferences, targetTypeLabel, type StudioMarket, type StudioScenarioInput } from "./studio-model";
 import { buildSensitivityResult, SensitivityPanel, validateSensitivityRequest } from "./sensitivity-panel";
 
 const cx = (...values: Array<string | false | undefined>) => values.filter(Boolean).join(" ");
@@ -39,18 +39,19 @@ function claimSections(result: CounterfactualResult): Array<{ title: string; cla
   ].filter((section) => section.claims.length > 0);
 }
 
-function ScenarioForm({ onSubmit, busy }: { onSubmit: (input: StudioScenarioInput) => void; busy: boolean }) {
+function ScenarioForm({ onSubmit, busy, initial }: { onSubmit: (input: StudioScenarioInput) => void; busy: boolean; initial?: StudioScenarioInput }) {
   const { enabled: strategicDefault, setEnabled: setStrategicDefault } = useStrategicInterpretationPreference();
   const strategicTouched = useRef(false);
-  const [productConcept, setProductConcept] = useState("");
-  const [seedQuery, setSeedQuery] = useState("");
-  const [baselineLocation, setBaselineLocation] = useState("London");
-  const [alternativeLocation, setAlternativeLocation] = useState("New York");
-  const [includeStrategicInterpretation, setIncludeStrategicInterpretation] = useState(strategicDefault);
+  const [productConcept, setProductConcept] = useState(initial?.productConcept ?? "");
+  const [seedQuery, setSeedQuery] = useState(initial?.seedQuery ?? "");
+  const [baselineLocation, setBaselineLocation] = useState(initial?.baselineLocation ?? "London");
+  const [alternativeLocation, setAlternativeLocation] = useState(initial?.alternativeLocation ?? "New York");
+  const [researchTarget, setResearchTarget] = useState(initial?.researchTarget ?? normalizeResearchTarget(undefined));
+  const [includeStrategicInterpretation, setIncludeStrategicInterpretation] = useState(initial?.includeStrategicInterpretation ?? strategicDefault);
   useEffect(() => {
     if (!strategicTouched.current) setIncludeStrategicInterpretation(strategicDefault);
   }, [strategicDefault]);
-  return <form className="grid gap-3" onSubmit={(event) => { event.preventDefault(); onSubmit({ productConcept, seedQuery, baselineLocation, alternativeLocation, includeStrategicInterpretation }); }}>
+  return <form className="grid gap-3" onSubmit={(event) => { event.preventDefault(); onSubmit({ productConcept, seedQuery, baselineLocation, alternativeLocation, researchTarget, includeStrategicInterpretation }); }}>
     <div className="grid gap-3 min-[1400px]:grid-cols-[minmax(0,1.4fr)_minmax(0,1.2fr)_minmax(0,0.7fr)_minmax(0,0.7fr)_minmax(160px,0.85fr)] max-[1399px]:grid-cols-2 lg:items-end">
       <TextField className="[&>label]:text-[11px] [&>label]:uppercase [&>label]:tracking-[0.12em] [&>input]:min-h-10" required label="Launch concept" placeholder="A coffee brand for creative communities" value={productConcept} onChange={(event) => setProductConcept(event.target.value)} />
       <TextField className="[&>label]:text-[11px] [&>label]:uppercase [&>label]:tracking-[0.12em] [&>input]:min-h-10" required label="Cultural signal" placeholder="Seed brand or entity" value={seedQuery} onChange={(event) => setSeedQuery(event.target.value)} />
@@ -59,7 +60,8 @@ function ScenarioForm({ onSubmit, busy }: { onSubmit: (input: StudioScenarioInpu
       <Button className="min-h-10 whitespace-nowrap px-4" variant="accent" type="submit" disabled={busy}><Search aria-hidden className="size-4" />{busy ? "Researching…" : "Run analysis"}</Button>
     </div>
 
-    <div className="mosaic-strategic-row">
+    <div className="mosaic-strategic-row flex flex-wrap items-start gap-4">
+      <SelectControl className="[&>label]:text-[11px] [&>label]:uppercase [&>label]:tracking-[0.12em] [&_select]:min-h-10" label="Research target" value={researchTarget} onChange={(event) => setResearchTarget(normalizeResearchTarget(event.target.value))} options={RESEARCH_TARGET_OPTIONS.map((option) => ({ label: option.label, value: option.value }))} />
       <label className="mosaic-strategic-control">
         <input
           type="checkbox"
@@ -214,13 +216,13 @@ export function StudioWorkspace() {
       <div className="mosaic-signal-identity"><span className="mosaic-identity-icon" aria-hidden="true">✳</span><div><small>Your signal</small><strong>{lastRequest?.seedQuery || "Choose a signal"}</strong><span>{lastRequest?.productConcept || "Discover cultural connections"}</span></div></div>
     </div>
     <div id="scenario-workspace" className="mosaic-studio-edit" aria-label="Scenario workspace">
-      {result ? <details><summary>↗ New analysis or edit scenario <span>{lastRequest?.baselineLocation} · {lastRequest?.alternativeLocation}</span></summary><div className="mosaic-studio-edit-form"><ScenarioForm onSubmit={submit} busy={busy} /></div></details> : <ScenarioForm onSubmit={submit} busy={busy} />}
+      {result ? <details><summary>↗ New analysis or edit scenario <span>{lastRequest?.baselineLocation} · {lastRequest?.alternativeLocation}</span></summary><div className="mosaic-studio-edit-form"><ScenarioForm onSubmit={submit} busy={busy} initial={lastRequest} /></div></details> : <ScenarioForm onSubmit={submit} busy={busy} />}
     </div>
     {error && <div className="mt-3"><ErrorState description={error} /></div>}
     {busy && <div className="mosaic-studio-loading" aria-live="polite"><LoaderCircle aria-hidden className="size-4 animate-spin" />Researching both markets and validating evidence…</div>}
     {result && <div className="mosaic-studio-status"><ResearchStatus result={result} /></div>}
     {savedResearchAt && <div className="mt-4 rounded-[var(--mosaic-radius-sm)] border border-[var(--mosaic-line)] bg-[var(--mosaic-blue-wash)] px-4 py-3 text-sm text-[var(--mosaic-ink)]" role="status"><strong>Saved research</strong><span className="ml-2 text-xs text-[var(--mosaic-muted)]">Original research saved {new Date(savedResearchAt).toLocaleString()}</span></div>}
-    <SensitivityPanel key={lastRequest ? `${lastRequest.seedQuery}:${lastRequest.productConcept}:${lastRequest.baselineLocation}:${lastRequest.alternativeLocation}` : "empty"} originalRequest={lastRequest} originalResult={result} sensitivity={sensitivity} busy={experimentBusy} error={experimentError} historical={Boolean(savedResearchAt)} onRun={runExperiment} onInspectEvidence={selectSensitivityEvidence} />
+    <SensitivityPanel key={lastRequest ? `${lastRequest.seedQuery}:${lastRequest.productConcept}:${lastRequest.baselineLocation}:${lastRequest.alternativeLocation}:${lastRequest.researchTarget ?? "urn:entity:place"}` : "empty"} originalRequest={lastRequest} originalResult={result} sensitivity={sensitivity} busy={experimentBusy} error={experimentError} historical={Boolean(savedResearchAt)} onRun={runExperiment} onInspectEvidence={selectSensitivityEvidence} />
     {result && lastRequest && <SaveAnalysisAction request={lastRequest} result={result} />}
     {lastRequest && result?.status === "failed" && <ErrorState title="Research could not complete" description={result.errors.map((item) => item.message).join(" ") || "No validated comparison was returned."} />}
     <div id="insights-workspace" className="mosaic-studio-main-grid" aria-label="Research insights">
