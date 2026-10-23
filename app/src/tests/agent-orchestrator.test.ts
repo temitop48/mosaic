@@ -7,6 +7,7 @@ import type { AnalysisResult } from "@/agent/contracts";
 import type { CulturalIntelligenceProvider, ProviderResult } from "@/providers/interfaces/contracts";
 import type { ResearchBudget, ResearchObjective, ResearchRequestDescriptor } from "@/agent/decision/contracts";
 import { executeBoundedResearch } from "@/agent/decision/orchestrator";
+import { followUpRationale } from "@/components/mosaic/decision-brief-model";
 
 const subject: CulturalEntity = { id: "qloo:brand:adidas", providerId: "qloo", name: "Adidas", category: "brand", sourceReference: "qloo:entity:adidas", metadata: {} };
 const objective: ResearchObjective = { kind: "geographic-cultural-comparison", requestedOutcome: "Compare cultural affinities", markets: ["Lagos", "New York"], allowedTargetTypes: ["urn:entity:brand", "urn:entity:place"], requestedTargetType: "urn:entity:place" };
@@ -75,6 +76,7 @@ test("complete research stops without a follow-up", async () => {
   assert.equal(result.status, "stopped");
   assert.equal(result.assessment.decision.stopReason, "evidence-sufficient");
   assert.deepEqual(calls, []);
+  assert.equal(result.trace.steps.some((item) => item.action === "FOLLOW_UP_APPROVED"), false);
 });
 
 test("executes an explicitly authorized follow-up for each market", async () => {
@@ -85,8 +87,13 @@ test("executes an explicitly authorized follow-up for each market", async () => 
   assert.equal(result.followUpEvidence.length, 2);
   assert.equal(result.snapshots[0].research?.evidence.length, 2);
   assert.equal(result.initialSnapshots[0].research?.evidence.length, 1);
+  const approval = result.trace.steps.find((item) => item.action === "FOLLOW_UP_APPROVED");
+  assert.equal(approval?.reason, "The explicitly requested and authorized research dimension is materially different and within budget.");
+  assert.equal(followUpRationale({ status: result.status, trace: result.trace, followUpEvidence: result.followUpEvidence }, "Places"), approval?.reason);
   assert.equal(result.trace.steps.some((item) => item.action === "PROVIDER_OPERATION"), true);
   assert.equal(result.trace.steps.some((item) => item.action === "VALIDATE_EVIDENCE"), true);
+  assert.equal(result.trace.decision.action, "STOP");
+  assert.equal(result.trace.stopReason, "evidence-sufficient");
 });
 
 test("blocks an unauthorized target dimension without a provider call", async () => {
@@ -115,6 +122,9 @@ test("preserves initial evidence after provider timeout or exception", async () 
   assert.equal(timeout.followUpEvidence.length, 0);
   assert.equal(timeout.snapshots[0].research?.evidence.length, 1);
   assert.equal(timeout.errors[0]?.code, "TIMEOUT");
+  assert.equal(timeout.trace.steps.some((item) => item.action === "FOLLOW_UP_APPROVED"), true);
+  assert.equal(timeout.trace.stopReason, "provider-failure");
+  assert.equal(timeout.trace.decision.action, "STOP");
   const exception = await executeBoundedResearch(baseInput({ provider: provider(() => { throw new Error("network failure"); }) }));
   assert.equal(exception.status, "partial");
   assert.equal(exception.assessment.decision.stopReason, "provider-failure");

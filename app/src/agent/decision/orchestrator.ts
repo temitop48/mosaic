@@ -163,9 +163,7 @@ export async function executeBoundedResearch(input: BoundedResearchExecutorInput
   const followUpEvidence: CulturalEvidence[] = [];
   let snapshots = copySnapshots(initialSnapshots);
   let budget = copyBudget(input.budget);
-  const steps: ResearchStep[] = [
-    step(0, "ASSESS", "Initial evidence assessed by the deterministic decision policy.", budget, budget, initialAssessment.evidenceIds, undefined, initialAssessment.summary, initialAssessment.decision.stopReason),
-  ];
+  const steps: ResearchStep[] = [...initialAssessment.trace.steps];
 
   if (initialAssessment.decision.action !== "FOLLOW_UP_APPROVED" || input.followUpRequests.length === 0) {
     return resultWithAssessment(initialSnapshots, snapshots, followUpEvidence, initialAssessment, { ...initialAssessment.trace, steps, budget }, diagnostics, errors, initialAssessment.status === "insufficient" ? "partial" : "stopped");

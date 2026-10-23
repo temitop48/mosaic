@@ -4,6 +4,7 @@ import type { CounterfactualResult } from "@/core/counterfactuals/contracts";
 import type { CulturalEvidence } from "@/core/evidence/types";
 import { createCounterfactualRequest, mapCounterfactualResponse, type StudioScenarioInput } from "@/components/mosaic/studio-model";
 import { followUpEvidenceCount, followUpEvidenceGroups } from "@/components/mosaic/decision-brief-model";
+import type { ExecutionTrace } from "@/agent/decision/contracts";
 import { loadSavedAnalyses, parseSavedAnalyses, saveAnalysis } from "@/components/mosaic/saved-analyses";
 
 class MemoryStorage {
@@ -109,6 +110,23 @@ test("agent fields round-trip in saved research while legacy entries remain read
   const legacy = JSON.stringify([{ id: "legacy", title: "Legacy", request: { ...request, agentResearchEnabled: undefined, agentObjective: undefined, agentFollowUpTarget: undefined }, result: source, createdAt: "2026-01-01T00:00:00.000Z", schemaVersion: 1 }]);
   assert.equal(parseSavedAnalyses(legacy).length, 1);
   assert.equal(parseSavedAnalyses(legacy)[0]?.result.agentResearch, undefined);
+});
+
+test("saved agent traces retain the initial follow-up approval step", () => {
+  const storage = new MemoryStorage();
+  const trace: ExecutionTrace = {
+    objective: { kind: "geographic-cultural-comparison", requestedOutcome: "Compare cultural affinities", markets: ["Lagos", "New York"], allowedTargetTypes: ["urn:entity:brand", "urn:entity:place"], requestedTargetType: "urn:entity:place" },
+    gaps: [],
+    decision: { action: "STOP", reason: "The available validated evidence is sufficient for the supported cultural assessment.", supportingEvidenceIds: [], stopReason: "evidence-sufficient" },
+    steps: [{ index: 0, action: "FOLLOW_UP_APPROVED", reason: "The explicitly requested and authorized research dimension is materially different and within budget.", supportingEvidenceIds: [], budgetBefore: {} as never, budgetAfter: {} as never, outcome: "An explicitly authorized follow-up was approved." }],
+    budget: {} as never,
+    stopReason: "evidence-sufficient",
+  };
+  const source = { ...result(), agentResearch: { status: "completed" as const, trace, followUpEvidence: [evidence("Lagos")] } };
+  assert.equal(saveAnalysis(request, source, storage).ok, true);
+  const reopened = loadSavedAnalyses(storage)[0]?.result.agentResearch;
+  assert.equal(reopened?.trace?.steps[0]?.action, "FOLLOW_UP_APPROVED");
+  assert.equal(reopened?.trace?.steps[0]?.reason, trace.steps[0]?.reason);
 });
 
 test("groups completed Brand-to-Place follow-up evidence by dimension and market", () => {
