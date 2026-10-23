@@ -24,6 +24,7 @@ import type { CulturalEvidence } from "@/core/evidence/types";
 import { Button, Card, EmptyState, EvidenceBadge, ErrorState, ProvenanceIndicator, SectionHeading, SelectControl, StatusBadge, TextField, usePresentationView, useStrategicInterpretationPreference } from "./primitives";
 import { createCounterfactualRequest, CULTURAL_CONNECTIONS_LABEL, evidenceForMarket, locationForMarket, mapCounterfactualResponse, normalizeResearchTarget, observedTargetComparison, providerExplanationText, RESEARCH_TARGET_OPTIONS, researchScopeForMarket, strategicReferences, targetTypeLabel, type StudioMarket, type StudioScenarioInput, type StudioResearchResult } from "./studio-model";
 import { AgentResearchControls, DecisionBrief, type AgentResearchDraft } from "./decision-brief";
+import { geographicComparisonNotice, geographicInterpretationForResult } from "./decision-brief-model";
 import { buildSensitivityResult, SensitivityPanel, validateSensitivityRequest } from "./sensitivity-panel";
 
 const cx = (...values: Array<string | false | undefined>) => values.filter(Boolean).join(" ");
@@ -98,13 +99,14 @@ function Recommendations({ result, market, selectedEvidenceId, onSelectEvidence 
 function Comparison({ result }: { result: CounterfactualResult }) {
   const comparison = result.comparison;
   const observedTargets = observedTargetComparison(result);
+  const geographicInterpretation = geographicInterpretationForResult(result);
   const rows = [
     { market: "baseline" as const, color: "var(--mosaic-cobalt)" },
     { market: "alternative" as const, color: "var(--mosaic-vermilion)" },
   ];
   return <section className="mosaic-compare-strip" aria-label="Compare cities">
     <div className="mosaic-compare-intro">
-      <div><p className="mosaic-compare-eyebrow">THE COUNTERFACTUAL</p><h2>Two cities. Two cultural maps.</h2></div>
+      <div><p className="mosaic-compare-eyebrow">THE COUNTERFACTUAL</p><h2>{geographicInterpretation.placeInventory ? "Two cities. Two evidence sets." : "Two cities. Two cultural maps."}</h2></div>
       <p>Independent Qloo observations. Affinity is not a demand or market-fit score.</p>
     </div>
     <div className="mosaic-compare-markets">{rows.map(({ market, color }) => {
@@ -122,7 +124,7 @@ function Comparison({ result }: { result: CounterfactualResult }) {
     </div>
     {observedTargets.exactObservedEquality && <p className="mosaic-compare-context mt-3 text-xs text-[var(--mosaic-muted)]">No observed differentiation in the returned results for these market queries. The same target entities, ordering and provider affinity values were observed. This does not establish that the markets have identical cultural landscapes.</p>}
     {!observedTargets.complete && observedTargets.available && <p className="mosaic-compare-context mt-3 text-xs text-[var(--mosaic-muted)]">Observed target counts are limited to the available validated evidence because one or both market results are incomplete.</p>}
-    <details className="mosaic-compare-disclosure"><summary>Methodology and limitations</summary><p>These are geographically separate provider result sets. Their differences do not prove demand, commercial suitability, partnerships or causation.</p><ul>{[...new Set(comparison.limitations)].map((limitation) => <li key={limitation}>{limitation}</li>)}</ul></details>
+    <details className="mosaic-compare-disclosure"><summary>Methodology and limitations</summary><p>{geographicComparisonNotice(result)}</p><ul>{[...new Set(comparison.limitations)].map((limitation) => <li key={limitation}>{limitation}</li>)}</ul></details>
   </section>;
 }
 
@@ -230,7 +232,7 @@ export function StudioWorkspace() {
     {busy && <div className="mosaic-studio-loading" aria-live="polite"><LoaderCircle aria-hidden className="size-4 animate-spin" />Researching both markets and validating evidence…</div>}
     {result && <div className="mosaic-studio-status"><ResearchStatus result={result} /></div>}
     {savedResearchAt && <div className="mt-4 rounded-[var(--mosaic-radius-sm)] border border-[var(--mosaic-line)] bg-[var(--mosaic-blue-wash)] px-4 py-3 text-sm text-[var(--mosaic-ink)]" role="status"><strong>Saved research</strong><span className="ml-2 text-xs text-[var(--mosaic-muted)]">Original research saved {new Date(savedResearchAt).toLocaleString()}</span></div>}
-    <SensitivityPanel key={lastRequest ? `${lastRequest.seedQuery}:${lastRequest.productConcept}:${lastRequest.baselineLocation}:${lastRequest.alternativeLocation}:${lastRequest.researchTarget ?? "urn:entity:place"}` : "empty"} originalRequest={lastRequest} originalResult={result} sensitivity={sensitivity} savedStability={savedStability} busy={experimentBusy} error={experimentError} historical={Boolean(savedResearchAt)} onRun={runExperiment} onInspectEvidence={selectSensitivityEvidence} />
+    {result && <DecisionBrief result={result} stability={sensitivity?.decisionStability ?? savedStability} onInspectEvidence={selectOriginalEvidence} />}
     {result && lastRequest && <SaveAnalysisAction request={lastRequest} result={result} decisionStability={sensitivity?.decisionStability} />}
     {lastRequest && result?.status === "failed" && <ErrorState title="Research could not complete" description={result.errors.map((item) => item.message).join(" ") || "No validated comparison was returned."} />}
     <div id="insights-workspace" className="mosaic-studio-main-grid" aria-label="Research insights">
@@ -247,6 +249,6 @@ export function StudioWorkspace() {
     </div>
     {selectedEvidence && <Card className="mt-7 p-5" as="section"><div className="flex items-start justify-between gap-4"><div><p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--mosaic-cobalt)]">Selected evidence</p><h2 className="mosaic-serif mt-2 text-2xl">{evidenceName(selectedEvidence)}</h2></div><ProvenanceIndicator provider={selectedEvidence.provenance.providerId} detail={selectedEvidence.provenance.sourceReference} /></div><div className="mt-4 grid gap-3 text-xs text-[var(--mosaic-muted)] sm:grid-cols-4"><p><span className="font-semibold text-[var(--mosaic-ink)]">Category</span><br />{selectedEvidence.kind === "affinity" ? selectedEvidence.objectEntityCategory : "—"}</p><p><span className="font-semibold text-[var(--mosaic-ink)]">Provider score</span><br />{selectedEvidence.kind === "affinity" ? formatScore(selectedEvidence.providerScore) : "—"}</p><p><span className="font-semibold text-[var(--mosaic-ink)]">Geographic context</span><br />{selectedEvidence.geographicContext?.city ?? "Query context retained"}</p><p><span className="font-semibold text-[var(--mosaic-ink)]">Target type</span><br />{selectedEvidence.kind === "affinity" ? targetTypeLabel(selectedEvidence.queryParameters["filter.type"]) : "—"}</p></div>{selectedEvidence.kind === "affinity" && <div className="mt-4 rounded-[var(--mosaic-radius-sm)] bg-[var(--mosaic-blue-wash)] p-3.5"><p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--mosaic-cobalt)]">Qloo-provided explanation</p><p className="mt-1 text-sm leading-5 text-[var(--mosaic-ink)]">{providerExplanationText(selectedEvidence.explainability) ?? "Detailed provider explanation unavailable."}</p></div>}</Card>}
     {result && <StrategicPanel result={result} onSelectEvidence={selectOriginalEvidence} />}
-    {result && <DecisionBrief result={result} stability={sensitivity?.decisionStability ?? savedStability} onInspectEvidence={selectOriginalEvidence} />}
+    <SensitivityPanel key={lastRequest ? `${lastRequest.seedQuery}:${lastRequest.productConcept}:${lastRequest.baselineLocation}:${lastRequest.alternativeLocation}:${lastRequest.researchTarget ?? "urn:entity:place"}` : "empty"} originalRequest={lastRequest} originalResult={result} sensitivity={sensitivity} savedStability={savedStability} busy={experimentBusy} error={experimentError} historical={Boolean(savedResearchAt)} onRun={runExperiment} onInspectEvidence={selectSensitivityEvidence} />
   </div></>;
 }

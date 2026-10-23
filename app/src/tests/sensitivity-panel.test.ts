@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { compareDecisionSensitivity } from "@/core/sensitivity/compare";
-import { sensitivityMarketSummary, sensitivityRelationshipDisplay } from "@/components/mosaic/studio-model";
+import { sensitivityMarketSummary, sensitivityRelationshipDisplay, type StudioScenarioInput } from "@/components/mosaic/studio-model";
+import { sensitivityPresentationSummary, sensitivityScopeText, stabilityPresentationText } from "@/components/mosaic/sensitivity-presentation";
 import { type AffinityEvidence } from "@/core/evidence/types";
 import { type CounterfactualResult } from "@/core/counterfactuals/contracts";
 import type { DecisionSensitivityRelationship } from "@/core/sensitivity/contracts";
@@ -35,6 +36,52 @@ test("builds concise per-market summary values without changing comparison data"
   const summary = sensitivityMarketSummary(sensitivity, "baseline");
   assert.deepEqual(summary, { sharedObservedTargetEntities: 1, originalOnlyObservedTargets: 0, modifiedOnlyObservedTargets: 0, exactRelationshipChanges: 0, totalRelationshipChanges: 2 });
   assert.deepEqual(sensitivity.comparison.baseline, before);
+});
+
+test("presents zero-overlap replacement without calling it exact relationship changes", () => {
+  const original = result("Starbucks", evidence("Starbucks", "Lagos", "qloo:brand:old", "Old"));
+  const variant = result("Blue Bottle Coffee", evidence("Blue Bottle Coffee", "Lagos", "qloo:brand:new", "New"));
+  const sensitivity = compareDecisionSensitivity({ assumption: { dimension: "culturalSignal", originalValue: "Starbucks", alternativeValue: "Blue Bottle Coffee" }, originalResult: original, variantResult: variant });
+  const summary = sensitivityPresentationSummary(sensitivity, "baseline");
+  assert.equal(summary.sharedObservedTargetEntities, 0);
+  assert.equal(summary.sharedRelationshipsWithChangedAttributes, 0);
+  assert.equal(summary.totalDifferingObservations, 2);
+});
+
+test("counts one shared changed relationship once alongside replacements", () => {
+  const original = result("Starbucks", evidence("Starbucks", "Lagos", "qloo:brand:shared", "Shared", 0.8));
+  const variant = result("Blue Bottle Coffee", evidence("Blue Bottle Coffee", "Lagos", "qloo:brand:shared", "Shared", 0.4));
+  variant.baselineResearch!.evidence[0] = { ...variant.baselineResearch!.evidence[0]!, subjectEntityId: original.baselineResearch!.evidence[0]!.subjectEntityId, subjectEntityName: "Starbucks" };
+  const sensitivity = compareDecisionSensitivity({ assumption: { dimension: "culturalSignal", originalValue: "Starbucks", alternativeValue: "Blue Bottle Coffee" }, originalResult: original, variantResult: variant });
+  const summary = sensitivityPresentationSummary(sensitivity, "baseline");
+  assert.equal(summary.sharedObservedTargetEntities, 1);
+  assert.equal(summary.sharedRelationshipsWithChangedAttributes, 1);
+  assert.equal(summary.totalDifferingObservations, 1);
+});
+
+test("scope wording distinguishes primary evidence from agent follow-up state", () => {
+  const original = result("Starbucks", evidence("Starbucks", "Lagos", "qloo:brand:nike", "Nike"));
+  const variant = result("Blue Bottle Coffee", evidence("Blue Bottle Coffee", "Lagos", "qloo:brand:nike", "Nike"));
+  const disabledRequest = { productConcept: "Coffee", seedQuery: "Starbucks", baselineLocation: "Lagos", alternativeLocation: "New York", includeStrategicInterpretation: false, agentResearchEnabled: false } satisfies StudioScenarioInput;
+  assert.match(sensitivityScopeText(original, variant, disabledRequest), /primary brand research evidence/);
+  assert.match(sensitivityScopeText(original, variant, disabledRequest), /not enabled/);
+
+  (original as CounterfactualResult & { agentResearch?: unknown }).agentResearch = { status: "completed", followUpEvidence: [{ id: "place-original" }] };
+  (variant as CounterfactualResult & { agentResearch?: unknown }).agentResearch = { status: "completed", followUpEvidence: [{ id: "place-variant" }] };
+  const enabledRequest = { ...disabledRequest, agentResearchEnabled: true } satisfies StudioScenarioInput;
+  assert.match(sensitivityScopeText(original, variant, enabledRequest), /evaluated separately for comparability/);
+
+  delete (variant as CounterfactualResult & { agentResearch?: unknown }).agentResearch;
+  assert.match(sensitivityScopeText(original, variant, enabledRequest), /asymmetric/);
+});
+
+test("stability wording does not imply an unchanged business decision", () => {
+  const stability = { classification: "stable-conclusion-changed-evidence" as const, originalAssessment: {} as never, counterfactualAssessment: {} as never, evidenceChange: "changed" as const, conclusionChange: "stable" as const, comparability: "comparable" as const, supportingEvidenceIds: [], limitations: [], explanation: "generic" };
+  const text = stabilityPresentationText(stability);
+  assert.match(text, /Assessment category unchanged/);
+  assert.match(text, /cultural evidence changed/);
+  assert.match(text, /business decision is unchanged/);
+  assert.match(text, /commercially validated/);
 });
 
 test("maps verified names to original and modified relationship labels", () => {

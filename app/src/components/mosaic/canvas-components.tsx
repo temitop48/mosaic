@@ -6,6 +6,7 @@ import type { CounterfactualResult } from "@/core/counterfactuals/contracts";
 import type { CulturalEvidence } from "@/core/evidence/types";
 import { entityVisualForEntity } from "./entity-visuals";
 import { CULTURAL_CONNECTIONS_LABEL, evidenceForMarket, locationForMarket, observedTargetComparison, providerExplanationText, researchScopeForMarket, studioGraphForDisplay, buildStudioGraph, type StudioMarket } from "./studio-model";
+import { geographicComparisonNotice, geographicInterpretationForResult } from "./decision-brief-model";
 
 const cx = (...values: Array<string | false | undefined>) => values.filter(Boolean).join(" ");
 const score = (value: number | undefined) => typeof value === "number" ? value.toFixed(2) : "—";
@@ -18,6 +19,15 @@ const nodePositions = [
   { left: "68%", top: "77%", tone: "vermilion", color: "#df4c2e" },
   { left: "18%", top: "78%", tone: "pink", color: "#db718b" },
   { left: "6%", top: "48%", tone: "lilac", color: "#8465b7" },
+] as const;
+
+const mobileNodePositions = [
+  { left: "22%", top: "13%", x: 27, y: 20 },
+  { left: "78%", top: "13%", x: 83, y: 20 },
+  { left: "82%", top: "45%", x: 87, y: 52 },
+  { left: "78%", top: "77%", x: 83, y: 84 },
+  { left: "22%", top: "77%", x: 27, y: 84 },
+  { left: "18%", top: "45%", x: 23, y: 52 },
 ] as const;
 
 function categoryLabel(category: string) {
@@ -74,14 +84,17 @@ export function CanvasConstellation({ result, market, selectedEvidenceId, onSele
       </button>)}
     </div>
     {!result || !signal ? <div className="canvas-empty-map"><Sparkles aria-hidden="true" /><p>Run a scenario to reveal the cultural connections.</p></div> : <div className="canvas-graph-stage" aria-label={`Six cultural connections for ${signal.label} in ${marketName}`}>
-      <svg className="canvas-graph-lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+      <svg className="canvas-graph-lines canvas-graph-lines-desktop" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
         {nodes.map((node, index) => { const point = nodePositions[index]!; const x = parseInt(point.left, 10) + 5; const y = parseInt(point.top, 10) + 7; return <g key={node.id}><line x1="50" y1="51" x2={x} y2={y} stroke={point.color} /><circle cx={x} cy={y} r="1.25" fill={point.color} /></g>; })}
+      </svg>
+      <svg className="canvas-graph-lines canvas-graph-lines-mobile" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+        {nodes.map((node, index) => { const point = nodePositions[index]!; const mobilePoint = mobileNodePositions[index]!; return <g key={node.id}><line x1="50" y1="51" x2={mobilePoint.x} y2={mobilePoint.y} stroke={point.color} /><circle cx={mobilePoint.x} cy={mobilePoint.y} r="1.25" fill={point.color} /></g>; })}
       </svg>
       <div className="canvas-graph-signal">
         <div className="canvas-signal-art"><img src={entityVisualForEntity(signal.category, signal.providerId, signal.entityId)} alt="" aria-hidden="true" /></div>
         <strong>{signal.label}</strong><span>{signal.category}</span>
       </div>
-      {nodes.map((node, index) => { const point = nodePositions[index]!; const edge = edgeByTarget.get(node.id); const evidenceId = node.evidenceIds[0]; const selected = Boolean(selectedEvidenceId && node.evidenceIds.includes(selectedEvidenceId)); return <button key={node.id} type="button" className={cx("canvas-graph-node", `tone-${point.tone}`, selected && "is-selected")} style={{ left: point.left, top: point.top }} onClick={() => evidenceId && onSelectEvidence(evidenceId)} aria-label={`Inspect ${node.label}, ${node.category}, Qloo affinity ${score(edge?.providerScore)}`}>
+      {nodes.map((node, index) => { const point = nodePositions[index]!; const edge = edgeByTarget.get(node.id); const evidenceId = node.evidenceIds[0]; const selected = Boolean(selectedEvidenceId && node.evidenceIds.includes(selectedEvidenceId)); return <button key={node.id} type="button" className={cx("canvas-graph-node", `graph-node-${index}`, `tone-${point.tone}`, selected && "is-selected")} style={{ left: point.left, top: point.top }} onClick={() => evidenceId && onSelectEvidence(evidenceId)} aria-label={`Inspect ${node.label}, ${node.category}, Qloo affinity ${score(edge?.providerScore)}`}>
           <span className="canvas-node-art"><img src={entityVisualForEntity(node.category, node.providerId, node.entityId)} alt="" aria-hidden="true" /></span><span className="canvas-node-copy"><strong>{node.label}</strong><small>{node.category}</small><em>{score(edge?.providerScore)}</em></span>
         </button>; })}
     </div>}
@@ -122,9 +135,10 @@ export function CanvasComparisonCard({ result }: { result?: CounterfactualResult
   const verified = Boolean(baselineTop?.providerScore !== undefined || alternativeTop?.providerScore !== undefined);
   const interpretation = result?.strategicInterpretationStatus === "available" ? result.strategicInterpretation?.evidenceBackedObservations?.[0] : undefined;
   const observedTargets = result ? observedTargetComparison(result) : undefined;
+  const geographicInterpretation = result ? geographicInterpretationForResult(result) : undefined;
   return <section className="canvas-counterfactual-note" aria-labelledby="canvas-comparison-title">
     <div className="canvas-note-pin" aria-hidden="true">✳</div><Scale aria-hidden="true" className="canvas-note-icon" /><div><p className="canvas-kicker">Evidence-backed comparison</p><h2 id="canvas-comparison-title">Counterfactual Insight</h2>
-      {!result ? <p>Run an analysis to compare observed provider affinities across the two cities.</p> : verified ? <><p>The strongest observed provider affinity is {baselineTop?.providerScore !== undefined ? `${score(baselineTop.providerScore)} in ${locationForMarket(result, "baseline")}` : "not available"} and {alternativeTop?.providerScore !== undefined ? `${score(alternativeTop.providerScore)} in ${locationForMarket(result, "alternative")}` : "not available"}.</p><div className="canvas-comparison-bars" aria-label="Provider-native affinity comparison">{[{ market: "baseline" as const, item: baselineTop, color: "#2d79c7" }, { market: "alternative" as const, item: alternativeTop, color: "#df7184" }].map(({ market: comparisonMarket, item, color }) => <div key={comparisonMarket} className="canvas-comparison-bar-group"><span>{locationForMarket(result, comparisonMarket)}</span><div className="canvas-comparison-bar-track"><i style={{ width: `${Math.max(3, Math.min(100, (item?.providerScore ?? 0) * 100))}%`, backgroundColor: color }} /></div><strong>{score(item?.providerScore)}</strong></div>)}</div>{observedTargets?.available && <p className="canvas-note-limit">{observedTargets.sharedCount} shared observed targets · {observedTargets.baselineOnlyCount} baseline-only · {observedTargets.alternativeOnlyCount} alternative-only. The shared entity count also includes the cultural signal.</p>}{observedTargets?.exactObservedEquality && <p className="canvas-note-limit">No observed differentiation in the returned results for these market queries. The same target entities, ordering and provider affinity values were observed. This does not establish that the markets have identical cultural landscapes.</p>}<p className="canvas-note-limit">Observed affinity only. This does not indicate demand, commercial suitability, or launch success.</p>{interpretation && <div className="canvas-note-interpretation"><span>Optional Gemini interpretation</span><p>{interpretation.text}</p></div>}<span className="canvas-handwritten-note">same signal,<br />different context ↗</span></> : <p>No provider affinity values are available for a comparative visual yet. Differences between geographic result sets do not prove demand or commercial suitability.</p>}
+      {!result ? <p>Run an analysis to compare observed provider affinities across the two cities.</p> : verified ? <><p>{geographicInterpretation?.placeInventory ? `Qloo returned location-specific place observations for ${locationForMarket(result, "baseline")} and ${locationForMarket(result, "alternative")}. The highest observed scores belong to different place entities and are not a market ranking.` : `The strongest observed provider affinity is ${baselineTop?.providerScore !== undefined ? `${score(baselineTop.providerScore)} in ${locationForMarket(result, "baseline")}` : "not available"} and ${alternativeTop?.providerScore !== undefined ? `${score(alternativeTop.providerScore)} in ${locationForMarket(result, "alternative")}` : "not available"}. These are different observed entities and do not identify a market winner.`}</p><div className="canvas-comparison-bars" aria-label="Provider-native affinity comparison">{[{ market: "baseline" as const, item: baselineTop, color: "#2d79c7" }, { market: "alternative" as const, item: alternativeTop, color: "#df7184" }].map(({ market: comparisonMarket, item, color }) => <div key={comparisonMarket} className="canvas-comparison-bar-group"><span>{locationForMarket(result, comparisonMarket)}</span><div className="canvas-comparison-bar-track"><i style={{ width: `${Math.max(3, Math.min(100, (item?.providerScore ?? 0) * 100))}%`, backgroundColor: color }} /></div><strong>{score(item?.providerScore)}</strong></div>)}</div>{observedTargets?.available && <p className="canvas-note-limit">{observedTargets.sharedCount} shared observed targets · {observedTargets.baselineOnlyCount} baseline-only · {observedTargets.alternativeOnlyCount} alternative-only. The shared entity count also includes the cultural signal.</p>}{observedTargets?.exactObservedEquality && <p className="canvas-note-limit">No observed differentiation in the returned results for these market queries. The same target entities, ordering and provider affinity values were observed. This does not establish that the markets have identical cultural landscapes.</p>}<p className="canvas-note-limit">{geographicComparisonNotice(result)} Affinity is provider-native evidence, not demand, commercial suitability, or launch success.</p>{interpretation && <div className="canvas-note-interpretation"><span>Optional Gemini interpretation</span><p>{interpretation.text}</p></div>}<span className="canvas-handwritten-note">same signal,<br />different context ↗</span></> : <p>No provider affinity values are available for a comparative visual yet. Differences between geographic result sets do not prove demand or commercial suitability.</p>}
     </div>
   </section>;
 }

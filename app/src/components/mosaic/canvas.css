@@ -128,8 +128,97 @@
 @media(max-width:900px){.canvas-hero{grid-template-columns:1fr}.canvas-city-composition{max-width:560px}.canvas-layout{grid-template-columns:1fr}.canvas-collage-constellation,.canvas-collage-recommendations,.canvas-collage-insight{grid-column:1;grid-row:auto;padding-top:0;transform:none}.canvas-collage-recommendations,.canvas-collage-insight{margin-top:14px}.canvas-collage-constellation .canvas-constellation{min-height:0}.canvas-collage-constellation .canvas-graph-stage{min-height:545px}}
 @media(max-width:560px){.canvas-hero{padding-inline:0}.canvas-hero h1{font-size:52px}.canvas-city-composition{height:220px;transform:scale(.86);transform-origin:left top;margin-bottom:-24px}.canvas-city-card{width:230px}.canvas-city-card-alternative{left:155px}.canvas-scenario-form{display:block}.canvas-form-fields{display:grid;grid-template-columns:1fr}.canvas-control-region{padding:0 0 10px;margin-bottom:10px;border-bottom:1px solid rgb(120 93 58 / .12)}.canvas-signal-fields,.canvas-city-fields{grid-template-columns:1fr}.canvas-strategic-toggle{margin-left:0}.canvas-collage-constellation .canvas-graph-stage{min-height:600px}.canvas-category-legend{left:12px;top:74px;font-size:10px}.canvas-collage-insight .canvas-counterfactual-note{min-height:390px}}
 
+/* Completed research keeps the collage, but gives the evidence story priority. */
+.canvas-page-complete .canvas-hero {
+  min-height: 172px;
+  padding-top: 6px;
+  padding-bottom: 4px;
+}
+
+.canvas-page-complete .canvas-hero h1 {
+  font-size: clamp(42px, 4.4vw, 64px);
+}
+
+.canvas-page-complete .canvas-hero-copy {
+  margin-top: 12px;
+  font-size: 14px;
+}
+
+.canvas-page-complete .canvas-city-composition {
+  height: 155px;
+  transform: scale(.78);
+  transform-origin: right center;
+  margin-top: -22px;
+  margin-bottom: -22px;
+}
+
+@media(max-width:900px) {
+  .canvas-page-complete .canvas-hero {
+    min-height: 0;
+    padding-top: 0;
+  }
+
+  .canvas-page-complete .canvas-city-composition {
+    transform: scale(.82);
+    transform-origin: left top;
+    margin-top: -4px;
+    margin-bottom: -34px;
+  }
+}
+
+@media(max-width:560px) {
+  .canvas-page-complete .canvas-hero h1 {
+    font-size: 46px;
+  }
+
+  .canvas-page-complete .canvas-city-composition {
+    height: 190px;
+    transform: scale(.76);
+    margin-bottom: -46px;
+  }
+}
+
 /* Keep heading, legend, market selector, and graph in separate flow rows. */
 .canvas-collage-constellation .canvas-category-legend{position:relative;left:auto;top:auto;display:flex;flex-wrap:wrap;align-items:center;gap:6px 13px;margin:0 25px 3px;padding:3px 0;background:transparent;font-size:11px}
 .canvas-collage-constellation .canvas-market-tabs{margin-top:0;padding-top:4px;padding-bottom:8px}
 .canvas-collage-constellation .canvas-graph-stage{margin-top:0}
 @media(max-width:560px){.canvas-collage-constellation .canvas-category-legend{margin-inline:14px;gap:5px 10px;padding-top:2px;font-size:10px}.canvas-collage-constellation .canvas-market-tabs{padding-top:5px;padding-bottom:9px}}
+
+/* Keep the six-node radial network inside narrow touch viewports. The desktop
+   coordinates remain unchanged; mobile uses a slightly inset ring and matching
+   connector layer so evidence targets and labels share the same footprint. */
+.canvas-graph-lines-mobile{display:none}
+@media(max-width:560px){
+  .canvas-collage-constellation .canvas-graph-lines-desktop{display:none}
+  .canvas-collage-constellation .canvas-graph-lines-mobile{display:block}
+  .canvas-collage-constellation .canvas-graph-node{width:128px;min-height:44px;touch-action:manipulation}
+  .canvas-collage-constellation .canvas-graph-node.graph-node-0{left:22%!important;top:13%!important}
+  .canvas-collage-constellation .canvas-graph-node.graph-node-1{left:78%!important;top:13%!important}
+  .canvas-collage-constellation .canvas-graph-node.graph-node-2{left:82%!important;top:45%!important}
+  .canvas-collage-constellation .canvas-graph-node.graph-node-3{left:78%!important;top:77%!important}
+  .canvas-collage-constellation .canvas-graph-node.graph-node-4{left:22%!important;top:77%!important}
+  .canvas-collage-constellation .canvas-graph-node.graph-node-5{left:18%!important;top:45%!important}
+  .canvas-collage-constellation .canvas-node-copy{max-width:116px}
+  .canvas-collage-constellation .canvas-node-copy strong,
+  .canvas-collage-constellation .canvas-node-copy small{max-width:116px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+}
+
+/* Final form organization: inputs first, research options second, submit last. */
+.canvas-scenario-form{display:grid;grid-template-columns:1fr;gap:12px;align-items:start}
+.canvas-form-row{display:grid;gap:10px;min-width:0}
+.canvas-form-row-signals{grid-template-columns:repeat(2,minmax(0,1fr))}
+.canvas-form-row-markets{grid-template-columns:repeat(3,minmax(0,1fr))}
+.canvas-form-row-options{grid-template-columns:minmax(0,1.35fr) minmax(190px,.65fr);align-items:start}
+.canvas-form-row-options .mosaic-agent-control{min-width:0}
+.canvas-form-row-options .canvas-strategic-toggle{margin:8px 0 0;max-width:none}
+.canvas-form-actions{display:flex;justify-content:flex-end;padding-top:1px}
+.canvas-form-actions button{min-height:40px;white-space:nowrap}
+@media(max-width:900px){
+  .canvas-form-row-options{grid-template-columns:1fr}
+  .canvas-form-row-options .canvas-strategic-toggle{margin:0}
+}
+@media(max-width:560px){
+  .canvas-form-row-signals,.canvas-form-row-markets,.canvas-form-row-options{grid-template-columns:1fr}
+  .canvas-form-actions{justify-content:stretch}
+  .canvas-form-actions button{width:100%}
+}
